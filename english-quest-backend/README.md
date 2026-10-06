@@ -1,84 +1,86 @@
-# English Quest — Backend (Block 1)
 
-Gamified English learning platform backend built with **FastAPI**, **SQLAlchemy (async)**, **PostgreSQL** and **JWT**.
 
-Strict layered architecture: `routes → controllers → services → models`, with validators (Pydantic) and middleware (JWT / RBAC / errors).
+---
 
-## Tech stack
+# English Quest — Backend (Блок 1)
 
-- Python 3.11+ / FastAPI / Uvicorn
-- SQLAlchemy 2 (async) + asyncpg
-- Pydantic v2 + pydantic-settings
-- PyJWT + passlib (bcrypt, salt rounds = 12)
-- PostgreSQL 16 (Docker)
+Бэкенд геймифицированной платформы для изучения английского языка. Построен на **FastAPI**, **SQLAlchemy (async)**, **PostgreSQL** и **JWT**.
 
-## Structure
+Строгая многослойная архитектура: `routes → controllers → services → models`, с валидаторами (Pydantic) и middleware (JWT / RBAC / обработка ошибок).
+
+## Стек технологий
+
+* Python 3.11+ / FastAPI / Uvicorn
+* SQLAlchemy 2 (async) + asyncpg
+* Pydantic v2 + pydantic-settings
+* PyJWT + passlib (bcrypt, количество раундов хеширования = 12)
+* PostgreSQL 16 (Docker)
+
+## Структура проекта
 
 ```
 src/
-├── config/        # database.py, settings.py
-├── controllers/   # auth, user, mission, game
-├── middleware/    # auth (JWT), role (RBAC), error handlers
-├── routes/        # auth, user, mission, game routers
-├── services/      # account, calibration, mission, game, user, security
-├── validators/    # Pydantic request schemas
-├── models/        # SQLAlchemy ORM
-└── db/seed.py     # startup seed data
+├── config/         # database.py, settings.py
+├── controllers/    # auth, user, mission, game
+├── middleware/     # auth (JWT), role (RBAC), обработчики ошибок
+├── routes/         # роутеры: auth, user, mission, game
+├── services/       # account, calibration, mission, game, user, security
+├── validators/     # схемы запросов Pydantic
+├── models/         # ORM-модели SQLAlchemy
+└── db/seed.py      # первоначальное заполнение БД (seed)
+
 ```
 
-> Some modules keep the dotted filenames from the ТЗ (e.g. `auth.controller.py`) as thin
-> re-export shims; the real implementation lives in the matching `*_*.py` module.
+> Некоторые модули сохраняют имена файлов с точками из ТЗ (например, `auth.controller.py`) в качестве тонких реэкспортных прослоек (shims); реальная реализация находится в соответствующих модулях вида `*_*.py`.
 
-## Run
+## Запуск
 
 ```bash
-# 1. Start PostgreSQL (from the repository root)
+# 1. Запуск PostgreSQL (из корневой директории репозитория)
 docker compose up -d
 
-# 2. Backend
+# 2. Бэкенд
 cd english-quest-backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # adjust if needed
+cp .env.example .env          # скорректируйте при необходимости
 uvicorn src.server:app --host 0.0.0.0 --port 8000
+
 ```
 
-API docs: http://localhost:8000/docs · Health: http://localhost:8000/health
+Документация API: http://localhost:8000/docs · Проверка работоспособности (Health): http://localhost:8000/health
 
-Tables are created automatically and seed data is inserted on startup:
+Таблицы создаются автоматически, и при старте приложения загружаются начальные данные:
 
-- roles `student`, `teacher`
-- CEFR levels `A1`–`C2`
-- 3 calibration questions per level (A1–B2)
-- teacher account `teacher@englishquest.dev` / `Teacher123`
-- 5 demo missions for level A1 (with tasks, questions, options)
+* роли: `student`, `teacher`
+* уровни CEFR: `A1`–`C2`
+* по 3 калибровочных вопроса на каждый уровень (A1–B2)
+* аккаунт преподавателя: `teacher@englishquest.dev` / `Teacher123`
+* 5 демо-миссий для уровня A1 (с заданиями, вопросами и вариантами ответов)
 
-## Business rules
+## Бизнес-правила
 
-- **Calibration** (`POST /calibration/submit`): server compares answers, derives CEFR level,
-  auto-completes all lower levels and awards starting XP.
-- **XP**: first successful pass of a mission → sum of `xp_reward_first`; repeat → sum of
-  `xp_reward_repeat`; below **70%** → no XP.
-- **Free navigation**: missions of levels above the user's CEFR are marked `locked`.
-- **RBAC**: mission create/update/delete require the `teacher` role (otherwise 403).
+* **Калибровка** (`POST /calibration/submit`): сервер сравнивает ответы, определяет уровень CEFR, автоматически отмечается как пройденные все нижестоящие уровни и начисляется стартовый XP.
+* **XP (очки опыта)**: первое успешное прохождение миссии → сумма `xp_reward_first`; повторное прохождение → сумма `xp_reward_repeat`; результат ниже **70%** → XP не начисляется.
+* **Свободная навигация**: миссии уровней выше текущего уровня CEFR пользователя отмечаются как `locked` (заблокированы).
+* **RBAC (разграничение прав)**: создание, обновление и удаление миссий требуют роли `teacher` (иначе возвращается ошибка 403).
 
 ## API
 
-| Method | Path | Role | Purpose |
-|---|---|---|---|
-| POST | `/api/v1/auth/register` | — | Register (role `student`) |
-| POST | `/api/v1/auth/login` | — | Login → JWT |
-| GET | `/api/v1/auth/me` | auth | Current profile |
-| POST | `/api/v1/calibration/submit` | student | Submit placement test |
-| GET | `/api/v1/calibration/questions` | auth | Placement questions |
-| GET | `/api/v1/levels` | auth | Levels + missions (`locked`) |
-| GET | `/api/v1/missions/{id}` | auth | Mission detail + questions |
-| POST | `/api/v1/missions/{id}/submit-tests` | student | Test block result |
-| POST | `/api/v1/missions/{id}/submit-pronunciation` | student | Pronunciation result |
-| POST | `/api/v1/missions/{id}/submit-game` | student | Arcade result + XP |
-| POST/PUT/DELETE | `/api/v1/missions[/{id}]` | teacher | Mission CRUD |
-| GET | `/api/v1/users/me/progress` | auth | User progress |
-| GET | `/api/v1/students/{id}/progress-preview` | auth | Student preview |
+| Метод | Путь | Роль | Назначение |
+| --- | --- | --- | --- |
+| POST | `/api/v1/auth/register` | — | Регистрация (роль `student`) |
+| POST | `/api/v1/auth/login` | — | Вход → получение JWT |
+| GET | `/api/v1/auth/me` | auth | Текущий профиль |
+| POST | `/api/v1/calibration/submit` | student | Отправка результатов вступительного теста |
+| GET | `/api/v1/calibration/questions` | auth | Вопросы вступительного теста |
+| GET | `/api/v1/levels` | auth | Уровни + миссии (со статусом `locked`) |
+| GET | `/api/v1/missions/{id}` | auth | Детали миссии + вопросы |
+| POST | `/api/v1/missions/{id}/submit-tests` | student | Результат тестового блока |
+| POST | `/api/v1/missions/{id}/submit-pronunciation` | student | Результат проверки произношения |
+| POST | `/api/v1/missions/{id}/submit-game` | student | Результат аркады + XP |
+| POST/PUT/DELETE | `/api/v1/missions[/{id}]` | teacher | CRUD-операции над миссиями |
+| GET | `/api/v1/users/me/progress` | auth | Прогресс пользователя |
+| GET | `/api/v1/students/{id}/progress-preview` | auth | Просмотр прогресса студента |
 
-Errors use a unified shape: `{ "error": { "code", "message", "details" } }`
-with codes `400 / 401 / 403 / 404 / 422`.
+Ошибки возвращаются в едином формате: `{ "error": { "code", "message", "details" } }` с кодами `400 / 401 / 403 / 404 / 422`.
