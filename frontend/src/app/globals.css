@@ -1,0 +1,420 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light theme */
+  --eq-bg: #ffffff;
+  --eq-text: #1a1a1f;
+  --eq-muted: #6b7280;
+  --eq-border: #e5e7eb;
+  --eq-circle: #f3f4f6;
+  --eq-circle-border: #d9d9d9;
+  --eq-track: #888888;
+  --eq-accent: #4a8fd6;
+  --eq-accent-hover: #3d7cbd;
+  --eq-accent-ring: rgba(74, 143, 214, 0.4);
+  --eq-accent-soft: rgba(74, 143, 214, 0.1);
+}
+
+.dark {
+  --eq-bg: #0b0b0d;
+  --eq-text: #f3f4f6;
+  --eq-muted: #8b9099;
+  --eq-border: #26272b;
+  --eq-circle: #17181b;
+  --eq-circle-border: #33353a;
+  --eq-track: #55575c;
+  --eq-accent: #4a8fd6;
+  --eq-accent-hover: #5e9ede;
+  --eq-accent-ring: rgba(74, 143, 214, 0.4);
+  --eq-accent-soft: rgba(74, 143, 214, 0.14);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--eq-bg);
+  color: var(--eq-text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Layout */
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.page-wide {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+@media (max-width: 640px) {
+  .page,
+  .page-wide {
+    padding: 32px 18px 80px;
+  }
+}
+
+/* Typography — only weights 400 and 500 */
+.eq-h1 {
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.eq-sub {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--eq-muted);
+  margin: 8px 0 0;
+}
+
+.eq-h2 {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.eq-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--eq-muted);
+}
+
+.eq-caption {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--eq-muted);
+}
+
+.muted {
+  color: var(--eq-muted);
+}
+
+.accent {
+  color: var(--eq-accent);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+/* ---------- Circles / path ---------- */
+.eq-circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--eq-circle);
+  border: 1px solid var(--eq-circle-border);
+  color: var(--eq-muted);
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.eq-circle.done {
+  background: var(--eq-accent);
+  border-color: var(--eq-accent);
+  color: #ffffff;
+}
+
+.eq-circle.current {
+  background: var(--eq-accent);
+  border-color: var(--eq-accent);
+  color: #ffffff;
+  transform: scale(1.06);
+  box-shadow: 0 0 0 8px var(--eq-accent-ring);
+}
+
+.eq-circle.locked {
+  cursor: not-allowed;
+}
+
+.eq-circle.available {
+  cursor: pointer;
+}
+
+.eq-circle.available:hover {
+  background: var(--eq-accent-hover);
+  border-color: var(--eq-accent-hover);
+  transform: scale(1.05);
+}
+
+/* Dotted connectors */
+.eq-dash-h {
+  flex: 1;
+  height: 0;
+  border-top: 3px dotted var(--eq-track);
+  min-width: 12px;
+}
+
+.eq-dash-v {
+  width: 0;
+  border-left: 3px dotted var(--eq-track);
+}
+
+/* thick rounded module connectors */
+.eq-module-link {
+  stroke: var(--eq-track);
+  stroke-width: 12;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* Blue button (flat) */
+.btn-eq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--eq-accent);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-eq:hover:not(:disabled) {
+  background: var(--eq-accent-hover);
+}
+
+.btn-eq:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-eq-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid var(--eq-border);
+  background: transparent;
+  color: var(--eq-text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-eq-ghost:hover:not(:disabled) {
+  background: var(--eq-circle);
+}
+
+/* Link (blue, small) */
+.eq-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--eq-accent);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.eq-back:hover {
+  color: var(--eq-accent-hover);
+}
+
+/* Flat card (no shadow) */
+.eq-card {
+  border: 1px solid var(--eq-border);
+  border-radius: 14px;
+  background: transparent;
+  padding: 20px;
+}
+
+/* Input */
+.eq-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--eq-border);
+  background: transparent;
+  color: var(--eq-text);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.eq-input:focus {
+  border-color: var(--eq-accent);
+}
+
+.eq-input::placeholder {
+  color: var(--eq-muted);
+}
+
+/* Choice row */
+.eq-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--eq-border);
+  background: transparent;
+  color: var(--eq-text);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.eq-choice:hover {
+  border-color: var(--eq-accent);
+}
+
+.eq-choice.selected {
+  border-color: var(--eq-accent);
+  background: var(--eq-accent-soft);
+}
+
+/* Progress track */
+.eq-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--eq-circle);
+  overflow: hidden;
+}
+
+.eq-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--eq-accent);
+}
+
+/* Game field (falling words) */
+.game-field {
+  height: 420px;
+}
+
+@media (max-width: 640px) {
+  .game-field {
+    height: 360px;
+  }
+}
+
+@keyframes fall {
+  from {
+    top: -10%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  to {
+    top: 118%;
+    opacity: 1;
+  }
+}
+
+/* Mic pulse */
+@keyframes eq-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--eq-accent-ring);
+  }
+  70% {
+    box-shadow: 0 0 0 20px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.mic-active {
+  animation: eq-pulse 1.6s ease-out infinite;
+}
+
+/* Result media (win/lose video) */
+.result-media {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--eq-border);
+  background: #000;
+  aspect-ratio: 16 / 10;
+}
+
+.result-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.result-sound {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Picture card in the game */
+.word-image {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}

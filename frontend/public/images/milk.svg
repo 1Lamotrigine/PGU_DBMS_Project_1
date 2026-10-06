@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <path d="M50 28h28l-6 20H56z" fill="#8ecae6"/>
+  <rect x="44" y="48" width="40" height="56" rx="6" fill="#ffffff"/>
+  <rect x="44" y="48" width="40" height="56" rx="6" fill="none" stroke="#adb5bd" stroke-width="3"/>
+  <rect x="44" y="66" width="40" height="14" fill="#2b8fd6"/>
+  <text x="64" y="78" font-family="Arial" font-size="12" fill="#ffffff" text-anchor="middle" font-weight="bold">MILK</text>
+</svg>
