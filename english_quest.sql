@@ -2,6 +2,7 @@
 -- PostgreSQL database dump
 --
 
+-- Если импортируете через pgAdmin, то удалите строки "\restrict"(В начале) и "\unrestrict"(В конце)
 \restrict qfqwGClDi31roJyuswaqzohKBDO6PZI9XQDJ2THlpXgCr2n6j19HeeCm9EZ0x7y
 
 -- Dumped from database version 18.3 (Homebrew)
@@ -1248,4 +1249,3 @@ ALTER TABLE ONLY public.vocabulary_items
 --
 
 \unrestrict qfqwGClDi31roJyuswaqzohKBDO6PZI9XQDJ2THlpXgCr2n6j19HeeCm9EZ0x7y
-
