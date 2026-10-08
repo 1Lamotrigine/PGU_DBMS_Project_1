@@ -17,3 +17,7 @@ npm-debug.log*
 *.swp
 .idea/
 .vscode/
+
+/sql
+q.md
+a.md
