@@ -1,8 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <rect x="58" y="86" width="12" height="26" rx="3" fill="#8d5524"/>
-  <circle cx="64" cy="46" r="30" fill="#3fae5a"/>
-  <circle cx="64" cy="46" r="30" fill="#3fae5a"/>
-  <path d="M34 46q0-30 30-30t30 30z" fill="#57c46f"/>
-  <circle cx="54" cy="44" r="3.5" fill="#1f5c2e"/>
-  <circle cx="74" cy="44" r="3.5" fill="#1f5c2e"/>
+  <ellipse cx="64" cy="116" rx="34" ry="7" fill="#130F3A" opacity="0.12"/>
+  <path d="M55 74h18l4 40H51z" fill="#9b6b3f"/>
+  <path d="M55 74h9l2 40H51z" fill="#7d5530"/>
+  <circle cx="43" cy="64" r="23" fill="#2f9e5b"/>
+  <circle cx="85" cy="64" r="23" fill="#2f9e5b"/>
+  <circle cx="64" cy="44" r="27" fill="#43c06e"/>
+  <circle cx="64" cy="70" r="26" fill="#3bb065"/>
+  <circle cx="52" cy="40" r="9" fill="#6fd98f" opacity="0.7"/>
+  <circle cx="46" cy="78" r="5" fill="#FF5A66"/>
+  <circle cx="84" cy="58" r="5" fill="#FF5A66"/>
+  <circle cx="63" cy="88" r="5" fill="#FF5A66"/>
 </svg>

@@ -37,6 +37,39 @@ type CardObj = {
 
 const ROWS = 3;
 
+/** Rounded-rectangle THREE.Shape centred on the origin. */
+function roundedRect(w: number, h: number, r: number): THREE.Shape {
+  const s = new THREE.Shape();
+  const x = -w / 2;
+  const y = -h / 2;
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y);
+  s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r);
+  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h);
+  s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r);
+  s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+
+/** Vertical gradient texture used as the scene backdrop. */
+function makeGradientTexture(top: string, bottom: string): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 8;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, top);
+  grad.addColorStop(1, bottom);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 8, 256);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
   { accent, bg, textColor, wallColor, onBreach },
   ref,
@@ -69,7 +102,11 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
     const height = mount.clientHeight || 460;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(bg);
+    const isDark = bg === "#130F3A";
+    scene.background = makeGradientTexture(
+      isDark ? "#1c1552" : "#FFFFFF",
+      isDark ? "#0c0928" : "#E6E1FF",
+    );
 
     const camera = new THREE.OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, -100, 100);
     camera.position.z = 10;
@@ -85,20 +122,45 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
     const world = new THREE.Group();
     scene.add(world);
 
-    // Base wall (left)
-    const wallW = 20;
-    const wall = new THREE.Mesh(
+    // Base wall (left) — a friendly "fortress" block
+    const wallW = 22;
+    const wallBase = new THREE.Mesh(
       new THREE.PlaneGeometry(wallW, height),
       new THREE.MeshBasicMaterial({ color: new THREE.Color(wallColor) }),
     );
-    wall.position.set(-width / 2 + wallW / 2, 0, 0);
-    world.add(wall);
+    wallBase.position.set(-width / 2 + wallW / 2, 0, 0);
+    world.add(wallBase);
+    const wallShade = new THREE.Mesh(
+      new THREE.PlaneGeometry(7, height),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(isDark ? "#2a215f" : "#cfc8f5") }),
+    );
+    wallShade.position.set(-width / 2 + wallW - 3.5, 0, 0.2);
+    world.add(wallShade);
     const stripe = new THREE.Mesh(
-      new THREE.PlaneGeometry(4, height),
+      new THREE.PlaneGeometry(5, height),
       new THREE.MeshBasicMaterial({ color: new THREE.Color(accent) }),
     );
-    stripe.position.set(-width / 2 + wallW + 2, 0, 0.5);
+    stripe.position.set(-width / 2 + wallW + 2.5, 0, 0.5);
     world.add(stripe);
+
+    // Little flag on the base
+    const pole = new THREE.Mesh(
+      new THREE.PlaneGeometry(3, 46),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(isDark ? "#F4F3FF" : "#130F3A") }),
+    );
+    pole.position.set(-width / 2 + wallW, height / 2 - 42, 1);
+    world.add(pole);
+    const flagShape = new THREE.Shape();
+    flagShape.moveTo(0, 0);
+    flagShape.lineTo(30, 9);
+    flagShape.lineTo(0, 18);
+    flagShape.lineTo(0, 0);
+    const flag = new THREE.Mesh(
+      new THREE.ShapeGeometry(flagShape),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(accent) }),
+    );
+    flag.position.set(-width / 2 + wallW + 1, height / 2 - 60, 1);
+    world.add(flag);
 
     const cards: CardObj[] = [];
     const particles: { mesh: THREE.Mesh; vx: number; vy: number; life: number }[] = [];
@@ -114,24 +176,33 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
       const cardW = 104;
       const cardH = 104;
 
-      // card background
-      const bodyMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(bg === "#0B0B0D" ? "#17181b" : "#FFFFFF") });
-      const body = new THREE.Mesh(new THREE.PlaneGeometry(cardW, cardH), bodyMat);
-      group.add(body);
-
-      // border
-      const border = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.PlaneGeometry(cardW, cardH)),
-        new THREE.LineBasicMaterial({ color: new THREE.Color(accent) }),
+      // card drop shadow
+      const shadow = new THREE.Mesh(
+        new THREE.ShapeGeometry(roundedRect(cardW + 8, cardH + 8, 22)),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: isDark ? 0.4 : 0.16 }),
       );
+      shadow.position.set(0, -5, -0.25);
+      group.add(shadow);
+
+      // accent border
+      const border = new THREE.Mesh(
+        new THREE.ShapeGeometry(roundedRect(cardW + 6, cardH + 6, 21)),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(accent) }),
+      );
+      border.position.z = -0.15;
       group.add(border);
+
+      // card background (rounded)
+      const bodyMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(isDark ? "#241d5e" : "#FFFFFF") });
+      const body = new THREE.Mesh(new THREE.ShapeGeometry(roundedRect(cardW, cardH, 19)), bodyMat);
+      group.add(body);
 
       if (lane.image) {
         // picture instead of the word
         const tex = new THREE.TextureLoader().load(lane.image);
         tex.colorSpace = THREE.SRGBColorSpace;
         const imgMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-        const img = new THREE.Mesh(new THREE.PlaneGeometry(cardW - 18, cardH - 18), imgMat);
+        const img = new THREE.Mesh(new THREE.PlaneGeometry(cardW - 20, cardH - 20), imgMat);
         img.position.z = 0.1;
         group.add(img);
       } else {
@@ -260,7 +331,7 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
       if (c && !c.dying) {
         c.dead = true;
         c.dying = true;
-        spawnParticles(c.group.position.x, c.group.position.y, success ? 0x4a8fd6 : 0x9aa0a6);
+        spawnParticles(c.group.position.x, c.group.position.y, success ? 0x22e1b0 : 0x9aa0a6);
       }
     };
     apiRef.current.reset = () => {
@@ -309,11 +380,11 @@ function makeTextMesh(text: string, color: string): THREE.Mesh {
   ctx.textBaseline = "middle";
   // auto-fit the font so long words don't overflow the card
   let size = 72;
-  ctx.font = `500 ${size}px Inter, Arial, sans-serif`;
+  ctx.font = `900 ${size}px Nunito, Inter, Arial, sans-serif`;
   const maxWidth = canvas.width - 40;
   while (ctx.measureText(text).width > maxWidth && size > 28) {
     size -= 4;
-    ctx.font = `500 ${size}px Inter, Arial, sans-serif`;
+    ctx.font = `900 ${size}px Nunito, Inter, Arial, sans-serif`;
   }
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
   const texture = new THREE.CanvasTexture(canvas);

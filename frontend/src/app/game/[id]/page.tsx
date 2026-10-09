@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Mic } from "lucide-react";
+import { ArrowLeft, Heart, Mic, Trophy } from "lucide-react";
 
 import { LaneScene, LaneSceneHandle, Lane } from "@/components/word-scene";
 import { ResultScreen } from "@/components/result-screen";
@@ -348,31 +348,33 @@ export default function GamePage() {
     );
   }
 
-  const accent = "#4A8FD6";
-  const bg = theme === "dark" ? "#0B0B0D" : "#F7F8FA";
-  const textColor = "#FFFFFF";
-  const wallColor = theme === "dark" ? "#26272B" : "#E5E7EB";
-
-  const health = Math.max(0, lives) / MAX_LIVES;
+  const accent = theme === "dark" ? "#FFD23F" : "#130F3A";
+  const bg = theme === "dark" ? "#130F3A" : "#F2F0FF";
+  const textColor = theme === "dark" ? "#F4F3FF" : "#130F3A";
+  const wallColor = theme === "dark" ? "#3B3680" : "#DDD8F7";
 
   return (
-    <main className="page" style={{ maxWidth: 820 }}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <main className="page" style={{ maxWidth: 860 }}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link href={`/missions/${missionId}`} className="eq-back">
           <ArrowLeft size={16} /> Lesson
         </Link>
-        <span className="eq-caption">
-          <span style={{ color: "var(--eq-accent)", fontWeight: 500 }}>{cleared}</span>/{WIN_WORDS} cleared
-        </span>
-      </div>
-
-      {/* Health bar */}
-      <div className="mb-2 flex items-center gap-3">
-        <span className="eq-caption" style={{ whiteSpace: "nowrap" }}>
-          Health {Math.max(0, lives)}/{MAX_LIVES}
-        </span>
-        <div className="eq-progress" style={{ flex: 1 }}>
-          <span style={{ width: `${health * 100}%` }} />
+        <div className="flex items-center gap-2">
+          <span className="eq-pill eq-pill--mint">
+            <Trophy size={15} /> {cleared}/{WIN_WORDS}
+          </span>
+          <span className="eq-pill" aria-label={`Health ${Math.max(0, lives)} of ${MAX_LIVES}`}>
+            <span className="eq-hearts">
+              {Array.from({ length: MAX_LIVES }).map((_, i) => (
+                <Heart
+                  key={i}
+                  size={16}
+                  className={i < lives ? "eq-heart" : "eq-heart--off"}
+                  fill={i < lives ? "currentColor" : "none"}
+                />
+              ))}
+            </span>
+          </span>
         </div>
       </div>
 
@@ -381,10 +383,11 @@ export default function GamePage() {
         className="relative overflow-hidden"
         style={{
           height: 460,
-          border: `1px solid ${lastResult === "hit" ? "var(--eq-accent)" : lastResult === "miss" ? "var(--eq-muted)" : "var(--eq-border)"}`,
-          borderRadius: 14,
+          border: `3px solid ${lastResult === "hit" ? "var(--eq-mint)" : lastResult === "miss" ? "var(--eq-coral)" : "var(--eq-border)"}`,
+          borderRadius: 26,
           background: bg,
           transition: "border-color 0.2s ease",
+          boxShadow: "var(--eq-shadow)",
         }}
       >
         <LaneScene
@@ -398,24 +401,10 @@ export default function GamePage() {
       </div>
 
       {/* Voice status */}
-      <div className="mt-4 flex flex-col items-center gap-2">
-        <div
-          className="flex items-center gap-2"
-          style={{ color: micOn ? "var(--eq-accent)" : "var(--eq-muted)" }}
-        >
-          <span
-            className={micOn ? "mic-active" : ""}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-              border: "1px solid currentColor",
-            }}
-          >
-            <Mic size={20} strokeWidth={1.75} />
+      <div className="mt-5 flex flex-col items-center gap-3">
+        <div className={`eq-mic ${micOn ? "eq-mic--on" : ""}`}>
+          <span className={`eq-mic__icon ${micOn ? "mic-active" : ""}`}>
+            <Mic size={20} strokeWidth={2} />
           </span>
           <span className="eq-caption" style={{ color: "inherit" }}>
             {!speechSupported
@@ -430,9 +419,9 @@ export default function GamePage() {
         {heard && <p className="eq-caption" style={{ margin: 0 }}>Heard: “{heard}”</p>}
       </div>
 
-      <p className="eq-caption mt-4" style={{ margin: 0 }}>
+      <p className="eq-caption mt-5" style={{ margin: 0, textAlign: "center" }}>
         Pictures fly toward your base. Say the English word for each one out loud before it reaches
-        the left edge — every breach costs 1 health.
+        the left edge — every breach costs 1 heart.
       </p>
     </main>
   );

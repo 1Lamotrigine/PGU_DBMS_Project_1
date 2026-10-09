@@ -18,9 +18,45 @@ npm-debug.log*
 .idea/
 .vscode/
 
+#
 /sql
 q.md
 a.md
 
 
 README_.md
+
+# Документация
+documentation.zip
+documentation
+/documentation/README.md
+01-overview.md
+02-architecture.md
+03-getting-started.md
+04-backend.md
+05-api.md
+06-frontend.md
+07-modules-and-xp.md
+08-database.md
+09-security.md
+10-admin-panel.md
+11-deployment.md
+12-testing.md
+13-troubleshooting.md
+
+# Обучалка по PSQL
+sql_education
+sql_education.zip
+/sql_education/README.md
+01-basics.md
+02-ddl.md
+03-dml.md
+04-select.md
+05-joins.md
+06-advanced.md
+07-project-schema.md
+08-recipes.md
+09-psql-cheatsheet.md
+10-indexes-performance.md
+11-backup-and-migration.md
+12-practice.md

@@ -59,7 +59,6 @@ export default function DashboardPage() {
         <h1 className="eq-h1">Choose your level</h1>
         <p className="eq-sub">Follow the path from A0 to C2.</p>
       </header>
-
       {/* Horizontal wavy path — centered, scrollable on small screens */}
       <div className="mt-16" style={{ display: "flex", justifyContent: "center" }}>
         <div
@@ -124,11 +123,17 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom stats + continue */}
-      <div className="mx-auto mt-20 flex flex-wrap items-center justify-center gap-6">
-        <div className="eq-caption">
-          Level {currentCode} · {progress.total_xp} XP ·{" "}
-          {currentLevel ? progress.completed_missions : 0} of {currentLevel?.missions.length ?? 0} missions done
-        </div>
+      <div className="mx-auto mt-20 grid gap-4 sm:grid-cols-3" style={{ maxWidth: 640 }}>
+        <StatCard value={progress.total_xp} label="Total XP" color="var(--eq-coral)" />
+        <StatCard value={`${currentCode}`} label="Your level" color="var(--eq-mint)" />
+        <StatCard
+          value={`${currentLevel ? progress.completed_missions : 0}/${currentLevel?.missions.length ?? 0}`}
+          label="Missions done"
+          color="var(--eq-sun)"
+        />
+      </div>
+
+      <div className="mx-auto mt-10 flex justify-center">
         <button className="btn-eq" onClick={() => router.push(`/levels/${currentCode}`)}>
           Continue {currentCode}
         </button>
@@ -137,5 +142,17 @@ export default function DashboardPage() {
         Tap a level to open it.
       </p>
     </main>
+  );
+}
+
+function StatCard({ value, label, color }: { value: string | number; label: string; color: string }) {
+  return (
+    <div
+      className="eq-card"
+      style={{ background: "var(--eq-bg)", borderColor: color, textAlign: "center", padding: 20 }}
+    >
+      <div style={{ fontFamily: "var(--head)", fontWeight: 900, fontSize: 34, color }}>{value}</div>
+      <div className="eq-label mt-1">{label}</div>
+    </div>
   );
 }

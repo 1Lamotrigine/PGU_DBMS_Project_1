@@ -35,20 +35,26 @@ export function SiteHeader() {
   return (
     <header
       className="sticky top-0 z-30"
-      style={{ background: "var(--eq-bg)", borderBottom: "1px solid var(--eq-border)" }}
+      style={{ background: "var(--eq-bg)", borderBottom: "2px solid var(--eq-border)" }}
     >
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-6 py-3">
         <Link href={profile ? "/dashboard" : "/"} className="flex items-center gap-3">
           <span
             aria-hidden
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 20,
-              background: "var(--eq-accent)",
+              width: 30,
+              height: 24,
+              borderRadius: "10px 10px 10px 2px",
+              background: "var(--eq-sun)",
+              boxShadow: "0 8px 18px -10px var(--eq-sun)",
             }}
           />
-          <span style={{ fontWeight: 500, fontSize: 16 }}>English Quest</span>
+          <span
+            className="font-display"
+            style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}
+          >
+            English&nbsp;Quest
+          </span>
         </Link>
 
         <nav className="flex items-center gap-5">
@@ -63,11 +69,11 @@ export function SiteHeader() {
             </Link>
           )}
           {profile ? (
-            <button onClick={logout} className="muted text-sm">
+            <button onClick={logout} className="btn-eq-ghost" style={{ minHeight: 38, padding: "0 18px" }}>
               Log out
             </button>
           ) : (
-            <Link href="/login" className="muted text-sm">
+            <Link href="/login" className="btn-eq" style={{ minHeight: 38, padding: "0 20px" }}>
               Log in
             </Link>
           )}
@@ -78,10 +84,10 @@ export function SiteHeader() {
             title={theme === "dark" ? "Light theme" : "Dark theme"}
             className="flex items-center justify-center"
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              border: "1px solid var(--eq-border)",
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              border: "2px solid var(--eq-border)",
               color: "var(--eq-muted)",
               background: "transparent",
             }}

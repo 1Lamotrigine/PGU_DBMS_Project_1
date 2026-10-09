@@ -2,33 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * English Quest — visual language ported from the root index.html concept:
+ * deep indigo surfaces, golden-yellow CTAs, mint + coral + sky accents,
+ * rounded Nunito display headings with Inter body copy and playful "bubble" shapes.
+ * Both light and dark themes keep the same bright personality.
+ */
 :root {
+  /* Shared accent palette (identical across themes) */
+  --eq-coral: #ff5a66;
+  --eq-mint: #22e1b0;
+  --eq-sun: #ffd23f;
+  --eq-sky: #7cc4ff;
+
   /* Light theme */
   --eq-bg: #ffffff;
-  --eq-text: #1a1a1f;
-  --eq-muted: #6b7280;
-  --eq-border: #e5e7eb;
-  --eq-circle: #f3f4f6;
-  --eq-circle-border: #d9d9d9;
-  --eq-track: #888888;
-  --eq-accent: #4a8fd6;
-  --eq-accent-hover: #3d7cbd;
-  --eq-accent-ring: rgba(74, 143, 214, 0.4);
-  --eq-accent-soft: rgba(74, 143, 214, 0.1);
+  --eq-text: #130f3a;
+  --eq-muted: #6f6a9b;
+  --eq-border: #e5e2fb;
+  --eq-circle: #f2f0ff;
+  --eq-circle-border: #ddd8f7;
+  --eq-track: #b9b6d6;
+  --eq-accent: #130f3a;
+  --eq-accent-hover: #2c2766;
+  --eq-on-accent: #ffffff;
+  --eq-accent-ring: rgba(255, 210, 63, 0.5);
+  --eq-accent-soft: rgba(255, 210, 63, 0.22);
+  --eq-panel: #f2f0ff;
+  --eq-shadow: 0 22px 48px -26px rgba(19, 15, 58, 0.5);
+  --head: "Nunito", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
 }
 
 .dark {
-  --eq-bg: #0b0b0d;
-  --eq-text: #f3f4f6;
-  --eq-muted: #8b9099;
-  --eq-border: #26272b;
-  --eq-circle: #17181b;
-  --eq-circle-border: #33353a;
-  --eq-track: #55575c;
-  --eq-accent: #4a8fd6;
-  --eq-accent-hover: #5e9ede;
-  --eq-accent-ring: rgba(74, 143, 214, 0.4);
-  --eq-accent-soft: rgba(74, 143, 214, 0.14);
+  --eq-bg: #130f3a;
+  --eq-text: #f4f3ff;
+  --eq-muted: #b9b6d6;
+  --eq-border: #3b3680;
+  --eq-circle: #201b57;
+  --eq-circle-border: #3b3680;
+  --eq-track: #4a4590;
+  --eq-accent: #ffd23f;
+  --eq-accent-hover: #ffe080;
+  --eq-on-accent: #130f3a;
+  --eq-accent-ring: rgba(255, 210, 63, 0.4);
+  --eq-accent-soft: rgba(255, 210, 63, 0.18);
+  --eq-panel: #201b57;
+  --eq-shadow: 0 26px 54px -28px rgba(0, 0, 0, 0.7);
+  --head: "Nunito", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
 }
 
 *,
@@ -48,12 +70,31 @@ body {
 body {
   background-color: var(--eq-bg);
   color: var(--eq-text);
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--body);
   font-weight: 400;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Soft ambient blobs like the index.html hero */
+.page,
+.page-wide {
+  position: relative;
+}
+
+.page::before,
+.page-wide::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(620px 380px at 92% 4%, var(--eq-accent-soft), transparent 62%),
+    radial-gradient(560px 360px at 0% 100%, rgba(34, 225, 176, 0.14), transparent 60%),
+    radial-gradient(420px 300px at 12% 8%, rgba(124, 196, 255, 0.12), transparent 60%);
 }
 
 /* Layout */
@@ -76,32 +117,36 @@ body {
   }
 }
 
-/* Typography — only weights 400 and 500 */
+/* Typography — Nunito display headings, Inter body */
 .eq-h1 {
-  font-size: 34px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-family: var(--head);
+  font-size: clamp(30px, 5vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
   margin: 0;
 }
 
 .eq-sub {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 400;
   color: var(--eq-muted);
-  margin: 8px 0 0;
+  margin: 10px 0 0;
 }
 
 .eq-h2 {
-  font-size: 18px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: var(--head);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
   margin: 0;
 }
 
 .eq-label {
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--eq-muted);
 }
 
@@ -127,7 +172,8 @@ a {
 h1,
 h2,
 h3 {
-  font-weight: 500;
+  font-family: var(--head);
+  font-weight: 800;
 }
 
 p {
@@ -144,23 +190,25 @@ p {
   height: 60px;
   border-radius: 50%;
   background: var(--eq-circle);
-  border: 1px solid var(--eq-circle-border);
+  border: 2px solid var(--eq-circle-border);
   color: var(--eq-muted);
-  font-weight: 500;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  font-family: var(--head);
+  font-weight: 800;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease,
+    box-shadow 0.15s ease;
   user-select: none;
 }
 
 .eq-circle.done {
-  background: var(--eq-accent);
-  border-color: var(--eq-accent);
-  color: #ffffff;
+  background: var(--eq-mint);
+  border-color: var(--eq-mint);
+  color: #130f3a;
 }
 
 .eq-circle.current {
-  background: var(--eq-accent);
-  border-color: var(--eq-accent);
-  color: #ffffff;
+  background: var(--eq-sun);
+  border-color: var(--eq-sun);
+  color: #130f3a;
   transform: scale(1.06);
   box-shadow: 0 0 0 8px var(--eq-accent-ring);
 }
@@ -176,6 +224,7 @@ p {
 .eq-circle.available:hover {
   background: var(--eq-accent-hover);
   border-color: var(--eq-accent-hover);
+  color: var(--eq-on-accent);
   transform: scale(1.05);
 }
 
@@ -200,31 +249,35 @@ p {
   fill: none;
 }
 
-/* Blue button (flat) */
+/* Primary pill button (playful, lifts on hover) */
 .btn-eq {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 20px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: var(--eq-accent);
-  color: #ffffff;
+  min-height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--eq-sun);
+  color: #130f3a;
+  font-family: var(--body);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 12px 26px -14px rgba(255, 210, 63, 0.95);
 }
 
 .btn-eq:hover:not(:disabled) {
+  transform: translateY(-3px) rotate(-1deg);
   background: var(--eq-accent-hover);
 }
 
 .btn-eq:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-eq-ghost {
@@ -232,61 +285,70 @@ p {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 20px;
-  border-radius: 12px;
-  border: 1px solid var(--eq-border);
+  min-height: 46px;
+  padding: 0 24px;
+  border-radius: 999px;
+  border: 2px solid var(--eq-border);
   background: transparent;
   color: var(--eq-text);
+  font-family: var(--body);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .btn-eq-ghost:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--eq-accent);
   background: var(--eq-circle);
 }
 
-/* Link (blue, small) */
+.btn-eq-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Link (accent, small) */
 .eq-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: var(--eq-accent);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .eq-back:hover {
   color: var(--eq-accent-hover);
 }
 
-/* Flat card (no shadow) */
+/* Soft rounded card */
 .eq-card {
-  border: 1px solid var(--eq-border);
-  border-radius: 14px;
-  background: transparent;
-  padding: 20px;
+  border: 2px solid var(--eq-border);
+  border-radius: 22px;
+  background: var(--eq-panel);
+  padding: 24px;
 }
 
 /* Input */
 .eq-input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid var(--eq-border);
-  background: transparent;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 2px solid var(--eq-border);
+  background: var(--eq-bg);
   color: var(--eq-text);
   font-size: 15px;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .eq-input:focus {
-  border-color: var(--eq-accent);
+  border-color: var(--eq-sun);
+  box-shadow: 0 0 0 4px var(--eq-accent-soft);
 }
 
 .eq-input::placeholder {
@@ -299,19 +361,20 @@ p {
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--eq-border);
-  background: transparent;
+  padding: 15px 18px;
+  border-radius: 16px;
+  border: 2px solid var(--eq-border);
+  background: var(--eq-bg);
   color: var(--eq-text);
   font-size: 15px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
 
 .eq-choice:hover {
-  border-color: var(--eq-accent);
+  border-color: var(--eq-sky);
+  transform: translateX(2px);
 }
 
 .eq-choice.selected {
@@ -321,7 +384,7 @@ p {
 
 /* Progress track */
 .eq-progress {
-  height: 6px;
+  height: 10px;
   border-radius: 999px;
   background: var(--eq-circle);
   overflow: hidden;
@@ -331,7 +394,7 @@ p {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--eq-accent);
+  background: linear-gradient(90deg, var(--eq-mint), var(--eq-sun));
 }
 
 /* Game field (falling words) */
@@ -379,11 +442,12 @@ p {
 /* Result media (win/lose video) */
 .result-media {
   position: relative;
-  border-radius: 16px;
+  border-radius: 22px;
   overflow: hidden;
-  border: 1px solid var(--eq-border);
+  border: 2px solid var(--eq-border);
   background: #000;
   aspect-ratio: 16 / 10;
+  box-shadow: var(--eq-shadow);
 }
 
 .result-media video {
@@ -395,13 +459,13 @@ p {
 
 .result-sound {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  right: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(6, 31, 58, 0.55);
   color: #fff;
   font-size: 16px;
   cursor: pointer;
@@ -417,4 +481,368 @@ p {
   object-fit: contain;
   display: block;
   pointer-events: none;
+}
+
+/* ============================================================
+ * Playful UX layer, ported from the index.html concept:
+ * floating bubbles, a coloured marquee, solid feature cards,
+ * numbered step tags and full-bleed section bands.
+ * ============================================================ */
+
+/* Top scroll-progress bar (index.html .prog) */
+.eq-prog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--eq-coral), var(--eq-sun), var(--eq-mint));
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* Floating greeting bubbles */
+.eq-bubbles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.eq-bub {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  padding: 8px 16px;
+  border-radius: 20px 20px 20px 4px;
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: clamp(15px, 2vw, 20px);
+  color: #130f3a;
+  background: var(--c);
+  rotate: var(--r, 0deg);
+  animation: eq-pop 0.6s var(--d, 0s) backwards cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+
+@keyframes eq-pop {
+  from {
+    scale: 0;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 940px) {
+  .eq-bub:nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* Marquee strip */
+.eq-mq {
+  background: var(--eq-mint);
+  color: #130f3a;
+  overflow: hidden;
+  padding: 14px 0;
+  border-block: 3px solid #130f3a;
+  margin-block: 8px;
+}
+
+.eq-mq__track {
+  display: flex;
+  gap: 40px;
+  width: max-content;
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: 26px;
+  animation: eq-mq 30s linear infinite;
+}
+
+.eq-mq:hover .eq-mq__track {
+  animation-play-state: paused;
+}
+
+.eq-mq__track span::after {
+  content: "✦";
+  margin-left: 40px;
+  color: var(--eq-coral);
+}
+
+@keyframes eq-mq {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Full-bleed coloured section band */
+.eq-band {
+  position: relative;
+  margin-inline: calc(50% - 50vw);
+  padding-inline: calc(50vw - 50%);
+  padding-block: 64px;
+}
+
+.eq-band--mint {
+  background: var(--eq-mint);
+  color: #130f3a;
+}
+
+.eq-band--sun {
+  background: var(--eq-sun);
+  color: #130f3a;
+}
+
+.eq-band--soft {
+  background: var(--eq-panel);
+}
+
+/* Solid accent feature card */
+.eq-feat {
+  border-radius: 24px;
+  padding: 28px;
+  border: 0;
+  color: #130f3a;
+  transition: transform 0.2s ease;
+}
+
+.eq-feat:hover {
+  transform: translateY(-4px) rotate(-0.6deg);
+}
+
+.eq-feat .eq-feat__ic {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #130f3a;
+  color: #fff;
+}
+
+.eq-feat--sun {
+  background: var(--eq-sun);
+}
+.eq-feat--sky {
+  background: var(--eq-sky);
+}
+.eq-feat--mint {
+  background: var(--eq-mint);
+}
+.eq-feat--coral {
+  background: var(--eq-coral);
+}
+
+/* Numbered step card */
+.eq-step {
+  background: var(--eq-bg);
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: var(--eq-shadow);
+}
+
+.eq-step__num {
+  display: inline-block;
+  background: #130f3a;
+  color: var(--eq-sun);
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: 15px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eq-mq__track {
+    animation: none;
+  }
+  .eq-bub {
+    animation: none;
+  }
+}
+
+/* ---------- Test / quiz module ---------- */
+.eq-quiz {
+  position: relative;
+  border: 2px solid var(--eq-border);
+  border-radius: 26px;
+  background: var(--eq-bg);
+  padding: 30px;
+  box-shadow: var(--eq-shadow);
+}
+
+.eq-quiz__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: #130f3a;
+  background: var(--eq-sun);
+  padding: 6px 15px;
+  border-radius: 999px;
+}
+
+.eq-quiz__q {
+  font-family: var(--head);
+  font-weight: 800;
+  font-size: clamp(21px, 3vw, 27px);
+  line-height: 1.28;
+  margin: 16px 0 24px;
+}
+
+.eq-opt {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2px solid var(--eq-border);
+  background: var(--eq-bg);
+  color: var(--eq-text);
+  font-family: var(--body);
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.eq-opt:hover {
+  border-color: var(--eq-sky);
+  transform: translateX(3px);
+}
+
+.eq-opt__key {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: 15px;
+  background: var(--eq-circle);
+  color: var(--eq-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.eq-opt__text {
+  flex: 1;
+}
+
+.eq-opt__check {
+  flex: none;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  color: var(--eq-mint);
+}
+
+.eq-opt.selected {
+  border-color: var(--eq-mint);
+  background: var(--eq-accent-soft);
+}
+
+.eq-opt.selected .eq-opt__key {
+  background: var(--eq-mint);
+  color: #130f3a;
+}
+
+.eq-opt.selected .eq-opt__check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.eq-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.eq-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--eq-circle-border);
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.eq-dot.on {
+  background: var(--eq-mint);
+}
+
+.eq-dot.cur {
+  width: 28px;
+  background: var(--eq-sun);
+}
+
+/* ---------- Game HUD ---------- */
+.eq-hearts {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.eq-heart {
+  color: var(--eq-coral);
+}
+
+.eq-heart--off {
+  color: var(--eq-circle-border);
+}
+
+.eq-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--eq-border);
+  background: var(--eq-bg);
+  font-family: var(--head);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.eq-pill--sun {
+  background: var(--eq-sun);
+  border-color: var(--eq-sun);
+  color: #130f3a;
+}
+
+.eq-pill--mint {
+  background: var(--eq-mint);
+  border-color: var(--eq-mint);
+  color: #130f3a;
+}
+
+.eq-mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--eq-border);
+  background: var(--eq-bg);
+}
+
+.eq-mic__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--eq-circle);
+  color: var(--eq-text);
+}
+
+.eq-mic--on .eq-mic__icon {
+  background: var(--eq-mint);
+  color: #130f3a;
 }
