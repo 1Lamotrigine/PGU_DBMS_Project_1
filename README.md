@@ -68,6 +68,23 @@ npm run dev
 
 ```
 
+## Тесты и CI
+
+```bash
+cd english-quest-backend
+pip install -r requirements-dev.txt
+pytest -q          # интеграционные API-тесты (изолированная SQLite)
+```
+
+```bash
+cd frontend
+npm ci
+npm run lint       # неинтерактивный ESLint
+npm run build
+```
+
+Пайплайн `.github/workflows/ci.yml` прогоняет compile + pytest (backend) и lint + build (frontend).
+
 ## Возможности и функционал
 
 * JWT-аутентификация, хеширование bcrypt (количество раундов = 12)
@@ -88,3 +105,15 @@ npm run dev
 
 * Преподаватель: `teacher@englishquest.dev` / `Teacher123`
 * Ученик: регистрация через пользовательский интерфейс
+
+## Данные и дамп БД
+
+Единственный воспроизводимый путь запуска — `create_all` + `seed` при старте бэкенда (см. «Быстрый запуск»). `english_quest.sql` — необязательный дамп схемы и контента:
+
+* дамп экспортирован PostgreSQL 18.3, а `docker-compose.yml` поднимает PostgreSQL 16; при использовании дампа перегенерируйте его на целевой версии;
+* персональные учётные записи и `password_hash` из дампа удалены; тестовый преподаватель создаётся сидом (`SEED_DEMO=true`);
+* в продакшене задайте `SEED_DEMO=false`, чтобы не создавать демо-аккаунт и контент.
+
+## Структура backend
+
+Имена модулей используют подчёркивания (`auth_controller.py`, `mission_service.py`, …) — это осознанная адаптация: Python не позволяет импортировать модули с точкой в имени (`auth.controller.py`). Прежние файлы-заглушки с точками удалены.

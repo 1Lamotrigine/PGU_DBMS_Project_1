@@ -868,8 +868,6 @@ COPY public.tasks (id, mission_id, title, description, task_type, order_number, 
 --
 
 COPY public.user_mission_progress (id, user_id, mission_id, is_completed, tests_passed, pronunciation_passed, best_score_percentage, completion_count, last_completed_at) FROM stdin;
-1	2	1	t	t	t	100	1	2026-10-02 15:21:24.299177
-2	1	6	f	t	f	0	0	\N
 \.
 
 
@@ -878,8 +876,6 @@ COPY public.user_mission_progress (id, user_id, mission_id, is_completed, tests_
 --
 
 COPY public.users (id, first_name, last_name, email, password_hash, cefr_level, level_id, total_xp, is_calibrated, role_id, group_id, created_at, updated_at) FROM stdin;
-1	Teacher	Quest	teacher@englishquest.dev	$2b$12$tfQNVWhMk6Wocwv.4n4BEuTFoTGXToCtrvHYOz/.5usZ5s.MVX1lO	C2	6	0	t	2	\N	2026-10-02 10:59:30.616828	2026-10-02 10:59:30.616828
-2	l	l	l@l.l	$2b$12$mpX15K3lD5VK6wDUXie0VOFLVcS010D2oQ/dVYhISO/pjKAzmhZv6	A1	1	370	t	1	\N	2026-10-02 11:05:13.482309	2026-10-02 20:21:24.265043
 \.
 
 

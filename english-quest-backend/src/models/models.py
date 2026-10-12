@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -96,7 +97,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    mission_id: Mapped[int] = mapped_column(ForeignKey("missions.id", ondelete="CASCADE"))
+    mission_id: Mapped[int] = mapped_column(ForeignKey("missions.id", ondelete="CASCADE"), index=True)
     title: Mapped[str | None] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     task_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -122,7 +123,7 @@ class Question(Base):
     __tablename__ = "questions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     question_type: Mapped[str] = mapped_column(String(30), nullable=False)
 
@@ -141,10 +142,10 @@ class QuestionOption(Base):
     __tablename__ = "question_options"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"), index=True)
     option_text: Mapped[str] = mapped_column(Text, nullable=False)
     translation_ru: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    is_correct: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_correct: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     question: Mapped["Question"] = relationship(back_populates="options")
@@ -174,7 +175,7 @@ class VocabularyItem(Base):
     __tablename__ = "vocabulary_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    level_id: Mapped[int] = mapped_column(ForeignKey("levels.id"))
+    level_id: Mapped[int] = mapped_column(ForeignKey("levels.id"), index=True)
     word_en: Mapped[str] = mapped_column(String(255), nullable=False)
     word_ru: Mapped[str] = mapped_column(String(255), nullable=False)
     transcription: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -185,8 +186,8 @@ class UserMissionProgress(Base):
     __tablename__ = "user_mission_progress"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    mission_id: Mapped[int] = mapped_column(ForeignKey("missions.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    mission_id: Mapped[int] = mapped_column(ForeignKey("missions.id"), index=True)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     tests_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     pronunciation_passed: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -198,3 +199,40 @@ class UserMissionProgress(Base):
     mission: Mapped["Mission"] = relationship(back_populates="progress")
 
     __table_args__ = (UniqueConstraint("user_id", "mission_id", name="uq_progress_user_mission"),)
+
+
+class MissionAttempt(Base):
+    """A single server-tracked run of a mission module.
+
+    Attempts make rewards idempotent: each attempt can be completed exactly once,
+    and XP is awarded per completed attempt rather than per raw request.
+    """
+
+    __tablename__ = "mission_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    mission_id: Mapped[int] = mapped_column(ForeignKey("missions.id"), index=True)
+    module: Mapped[str] = mapped_column(String(20), default="game")  # test|pronunciation|game
+    status: Mapped[str] = mapped_column(String(20), default="in_progress")
+    # JSON list of the item/question ids issued to the client for this attempt.
+    issued: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    xp_earned: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship()
+    mission: Mapped["Mission"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('in_progress','completed','failed')",
+            name="ck_attempt_status",
+        ),
+        CheckConstraint(
+            "module IN ('test','pronunciation','game')",
+            name="ck_attempt_module",
+        ),
+    )
+

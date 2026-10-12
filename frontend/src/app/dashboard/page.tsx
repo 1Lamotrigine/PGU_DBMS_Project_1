@@ -7,7 +7,6 @@ import { QuestCircle, CircleState } from "@/components/quest-circle";
 import { api, getToken, Level, Progress, UserProfile } from "@/services/api";
 
 const LEVEL_META: { code: string; label: string }[] = [
-  { code: "A0", label: "Starter" },
   { code: "A1", label: "Beginner" },
   { code: "A2", label: "Elementary" },
   { code: "B1", label: "Intermediate" },
@@ -52,12 +51,16 @@ export default function DashboardPage() {
   const levelByCode: Record<string, Level | undefined> = {};
   for (const l of levels) levelByCode[l.code] = l;
   const currentLevel = levelByCode[currentCode];
+  const currentCompleted = currentLevel
+    ? currentLevel.missions.filter((m) => m.progress?.is_completed).length
+    : 0;
+  const currentTotal = currentLevel ? currentLevel.missions.length : 0;
 
   return (
     <main className="page">
       <header style={{ textAlign: "center" }}>
         <h1 className="eq-h1">Choose your level</h1>
-        <p className="eq-sub">Follow the path from A0 to C2.</p>
+        <p className="eq-sub">Follow the path from A1 to C2.</p>
       </header>
       {/* Horizontal wavy path — centered, scrollable on small screens */}
       <div className="mt-16" style={{ display: "flex", justifyContent: "center" }}>
@@ -127,7 +130,7 @@ export default function DashboardPage() {
         <StatCard value={progress.total_xp} label="Total XP" color="var(--eq-coral)" />
         <StatCard value={`${currentCode}`} label="Your level" color="var(--eq-mint)" />
         <StatCard
-          value={`${currentLevel ? progress.completed_missions : 0}/${currentLevel?.missions.length ?? 0}`}
+          value={`${currentCompleted}/${currentTotal}`}
           label="Missions done"
           color="var(--eq-sun)"
         />

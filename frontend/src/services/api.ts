@@ -74,20 +74,25 @@ export const api = {
     }),
   calibrationQuestions: () =>
     apiRequest<CalibrationQuestion[]>("/calibration/questions"),
-  submitTests: (id: number, correctAnswers: number, totalQuestions: number) =>
+  startAttempt: (id: number, module: "test" | "pronunciation" | "game" = "game") =>
+    apiRequest<{ attempt_id: number; module: string; items?: VocabularyItem[] }>(`/missions/${id}/start`, {
+      method: "POST",
+      body: { module },
+    }),
+  submitTests: (id: number, answers: { question_id: number; option_id?: number; text?: string }[]) =>
     apiRequest<{ tests_passed: boolean; percent: number; passed: boolean }>(`/missions/${id}/submit-tests`, {
       method: "POST",
-      body: { correctAnswers, totalQuestions },
+      body: { answers },
     }),
-  submitPronunciation: (id: number, correctAnswers: number, totalQuestions: number) =>
+  submitPronunciation: (id: number, answers: { item_id: number; word: string }[]) =>
     apiRequest<{ pronunciation_passed: boolean; percent: number; passed: boolean }>(
       `/missions/${id}/submit-pronunciation`,
-      { method: "POST", body: { correctAnswers, totalQuestions } },
+      { method: "POST", body: { answers } },
     ),
-  submitGame: (id: number, correctAnswers: number, totalQuestions: number) =>
+  submitGame: (id: number, attemptId: number, answers: { item_id: number; word: string }[]) =>
     apiRequest<{ success: boolean; percent: number; xp_awarded: number; total_xp: number }>(
       `/missions/${id}/submit-game`,
-      { method: "POST", body: { correctAnswers, totalQuestions } },
+      { method: "POST", body: { attempt_id: attemptId, answers } },
     ),
   myProgress: () => apiRequest<Progress>("/users/me/progress"),
   createMission: (payload: unknown) => apiRequest<Mission>("/missions", { method: "POST", body: payload }),
@@ -156,7 +161,8 @@ export type QuestionOption = {
   option_text: string;
   translation_ru: string | null;
   image_url: string | null;
-  is_correct: boolean;
+  // Only present for teachers; students never receive the correct answer.
+  is_correct?: boolean;
 };
 
 export type Question = {

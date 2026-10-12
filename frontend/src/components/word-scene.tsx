@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 export type Lane = {
   id: number;
+  itemId?: number;
   ru: string;
   en: string;
   image?: string | null;
@@ -70,6 +71,25 @@ function makeGradientTexture(top: string, bottom: string): THREE.CanvasTexture {
   return tex;
 }
 
+/** Recursively dispose geometries, materials and their textures. */
+function disposeObject(obj: THREE.Object3D): void {
+  obj.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const material = (mesh as unknown as { material?: THREE.Material | THREE.Material[] }).material;
+    if (!material) return;
+    const materials = Array.isArray(material) ? material : [material];
+    for (const mat of materials) {
+      const anyMat = mat as unknown as Record<string, unknown>;
+      for (const key of ["map", "alphaMap", "lightMap", "emissiveMap"]) {
+        const tex = anyMat[key] as THREE.Texture | undefined;
+        if (tex && typeof tex.dispose === "function") tex.dispose();
+      }
+      mat.dispose();
+    }
+  });
+}
+
 export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
   { accent, bg, textColor, wallColor, onBreach },
   ref,
@@ -100,6 +120,8 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
 
     const width = mount.clientWidth || 720;
     const height = mount.clientHeight || 460;
+    // Mutable current size so resize keeps coordinates in sync with the camera.
+    const dims = { w: width, h: height };
 
     const scene = new THREE.Scene();
     const isDark = bg === "#130F3A";
@@ -167,8 +189,8 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
     let elapsed = 0;
 
     function laneY(row: number) {
-      const gap = height / (ROWS + 1);
-      return height / 2 - gap * (row + 1);
+      const gap = dims.h / (ROWS + 1);
+      return dims.h / 2 - gap * (row + 1);
     }
 
     function makeCard(lane: Lane, row: number): CardObj {
@@ -211,7 +233,7 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
         group.add(label);
       }
 
-      group.position.set(width / 2 + 130, laneY(row), 0);
+      group.position.set(dims.w / 2 + 130, laneY(row), 0);
       world.add(group);
 
       // Base speed with gentle acceleration over time
@@ -247,7 +269,7 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
           c.wobble += dt * 2.4;
           c.group.position.y += Math.sin(c.wobble) * 0.1;
           // Breach when the card's LEFT EDGE touches the wall's right edge.
-          const wallRight = -width / 2 + wallW + 6;
+          const wallRight = -dims.w / 2 + wallW + 6;
           const leftEdge = c.group.position.x - c.halfW;
           if (leftEdge <= wallRight) {
             c.dead = true;
@@ -291,10 +313,7 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
           });
           if (maxOpacity <= 0.01) {
             world.remove(c.group);
-            c.group.traverse((o) => {
-              const mesh = o as THREE.Mesh;
-              if (mesh.geometry) mesh.geometry.dispose();
-            });
+            disposeObject(c.group);
             cards.splice(i, 1);
           }
         }
@@ -308,7 +327,7 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
     apiRef.current.addCard = (lane: Lane) => {
       // Pick the row whose newest (right-most) card is farthest from the spawn edge,
       // so a new card never overlaps one that just appeared.
-      const rightEdge = width / 2 + 130;
+      const rightEdge = dims.w / 2 + 130;
       const rowFront: number[] = new Array(ROWS).fill(-Infinity); // largest x per row
       for (const c of cards) {
         if (c.dead) continue;
@@ -337,6 +356,7 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
     apiRef.current.reset = () => {
       for (const c of cards) {
         world.remove(c.group);
+        disposeObject(c.group);
       }
       cards.length = 0;
       elapsed = 0;
@@ -346,18 +366,32 @@ export const LaneScene = forwardRef<LaneSceneHandle, Props>(function LaneScene(
       if (!mount) return;
       const w = mount.clientWidth;
       const h = mount.clientHeight;
+      dims.w = w;
+      dims.h = h;
       renderer.setSize(w, h, false);
       camera.left = -w / 2;
       camera.right = w / 2;
       camera.top = h / 2;
       camera.bottom = -h / 2;
       camera.updateProjectionMatrix();
+      // Keep the fortress anchored to the resized viewport.
+      const scaleY = h / height;
+      wallBase.position.set(-w / 2 + wallW / 2, 0, 0);
+      wallBase.scale.y = scaleY;
+      wallShade.position.set(-w / 2 + wallW - 3.5, 0, 0.2);
+      wallShade.scale.y = scaleY;
+      stripe.position.set(-w / 2 + wallW + 2.5, 0, 0.5);
+      stripe.scale.y = scaleY;
+      pole.position.set(-w / 2 + wallW, h / 2 - 42, 1);
+      flag.position.set(-w / 2 + wallW + 1, h / 2 - 60, 1);
     }
     window.addEventListener("resize", onResize);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      disposeObject(world);
+      if (scene.background instanceof THREE.Texture) scene.background.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       apiRef.current = {};

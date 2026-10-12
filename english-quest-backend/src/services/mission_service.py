@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,6 +14,7 @@ from src.models.models import (
     UserMissionProgress,
     VocabularyItem,
 )
+from src.services.access import ensure_mission_accessible, is_teacher
 
 
 def _serialize_task(task: Task) -> dict:
@@ -100,6 +102,9 @@ async def get_mission_detail(db: AsyncSession, mission_id: int, user) -> dict:
             detail={"code": "NOT_FOUND", "message": "Mission not found"},
         )
 
+    await ensure_mission_accessible(db, mission, user)
+    show_correct = is_teacher(user)
+
     progress_result = await db.execute(
         select(UserMissionProgress).where(
             UserMissionProgress.user_id == user.id,
@@ -122,7 +127,8 @@ async def get_mission_detail(db: AsyncSession, mission_id: int, user) -> dict:
                         "option_text": option.option_text,
                         "translation_ru": option.translation_ru,
                         "image_url": option.image_url,
-                        "is_correct": option.is_correct,
+                        # Never expose the correct answer to students.
+                        **({"is_correct": option.is_correct} if show_correct else {}),
                     }
                     for option in question.options
                 ],
@@ -158,11 +164,50 @@ async def _reload_mission(db: AsyncSession, mission_id: int) -> dict:
 
 
 async def _mission_count(db: AsyncSession, level_id: int, exclude_mission_id: int | None = None) -> int:
-    result = await db.execute(select(Mission).where(Mission.level_id == level_id))
-    return len([m for m in result.scalars().all() if m.id != exclude_mission_id])
+    query = select(func.count(Mission.id)).where(Mission.level_id == level_id)
+    if exclude_mission_id is not None:
+        query = query.where(Mission.id != exclude_mission_id)
+    result = await db.execute(query)
+    return int(result.scalar_one())
+
+
+async def _assert_publishable(db: AsyncSession, mission_id: int) -> None:
+    """Content-readiness gate: don't publish a mission with broken questions."""
+    result = await db.execute(
+        select(Question)
+        .join(Task, Question.task_id == Task.id)
+        .options(selectinload(Question.options))
+        .where(Task.mission_id == mission_id)
+    )
+    for question in result.scalars().all():
+        if question.question_type != "multiple_choice":
+            continue
+        if len(question.options) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "QUESTION_INCOMPLETE",
+                    "message": f"Question {question.id} needs at least two options",
+                },
+            )
+        correct = [o for o in question.options if o.is_correct]
+        if len(correct) != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "QUESTION_INCOMPLETE",
+                    "message": f"Question {question.id} must have exactly one correct option",
+                },
+            )
 
 
 async def create_mission(db: AsyncSession, payload) -> dict:
+    level = await db.get(Level, payload.level_id)
+    if level is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "LEVEL_NOT_FOUND", "message": "Level does not exist"},
+        )
     if await _mission_count(db, payload.level_id) >= 5:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -189,7 +234,17 @@ async def create_mission(db: AsyncSession, payload) -> dict:
             )
         )
     db.add(mission)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "MISSION_CONFLICT",
+                "message": "A mission with this level and order already exists",
+            },
+        )
     return await _reload_mission(db, mission.id)
 
 
@@ -204,10 +259,29 @@ async def update_mission(db: AsyncSession, mission_id: int, payload) -> dict:
             detail={"code": "NOT_FOUND", "message": "Mission not found"},
         )
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("level_id") is not None and await db.get(Level, data["level_id"]) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "LEVEL_NOT_FOUND", "message": "Level does not exist"},
+        )
+    for field, value in data.items():
         setattr(mission, field, value)
 
-    await db.commit()
+    if data.get("is_active") is True and mission.tasks:
+        await _assert_publishable(db, mission_id)
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "MISSION_CONFLICT",
+                "message": "A mission with this level and order already exists",
+            },
+        )
     return await _reload_mission(db, mission.id)
 
 
@@ -219,12 +293,30 @@ async def delete_mission(db: AsyncSession, mission_id: int) -> dict:
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "NOT_FOUND", "message": "Mission not found"},
         )
+    progress_count = await db.scalar(
+        select(func.count(UserMissionProgress.id)).where(UserMissionProgress.mission_id == mission_id)
+    )
+    if int(progress_count or 0) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "MISSION_IN_USE",
+                "message": "Mission has user progress; archive it instead of deleting",
+            },
+        )
     await db.delete(mission)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "MISSION_IN_USE", "message": "Mission is referenced by other records"},
+        )
     return {"deleted": True, "id": mission_id}
 
 
-async def get_mission_vocabulary(db: AsyncSession, mission_id: int) -> list[dict]:
+async def get_mission_vocabulary(db: AsyncSession, mission_id: int, user) -> list[dict]:
     """RU -> EN pairs for the Dictionary game of the mission's level."""
     result = await db.execute(select(Mission).where(Mission.id == mission_id))
     mission = result.scalar_one_or_none()
@@ -233,6 +325,8 @@ async def get_mission_vocabulary(db: AsyncSession, mission_id: int) -> list[dict
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "NOT_FOUND", "message": "Mission not found"},
         )
+
+    await ensure_mission_accessible(db, mission, user)
 
     vocab_result = await db.execute(
         select(VocabularyItem).where(VocabularyItem.level_id == mission.level_id).order_by(VocabularyItem.id)
@@ -272,6 +366,8 @@ async def list_recommended_missions(db: AsyncSession, user) -> list[dict]:
     recommended = []
     for mission in missions:
         progress = progress_map.get(mission.id)
+        if progress and progress.is_completed:
+            continue  # exclude already completed missions
         payload = _serialize_mission(mission)
         payload["is_completed"] = bool(progress and progress.is_completed)
         payload["progress"] = {

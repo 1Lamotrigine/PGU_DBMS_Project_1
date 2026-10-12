@@ -20,8 +20,15 @@ async def student_progress_preview(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    caller_role = current_user.role.name if current_user.role else None
+    if caller_role != "teacher" and current_user.id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "You can only view your own progress"},
+        )
+
     target = await get_user_with_role(db, student_id)
-    if target is None:
+    if target is None or (target.role and target.role.name != "student"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "NOT_FOUND", "message": "Student not found"},

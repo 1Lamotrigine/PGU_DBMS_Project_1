@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Trash2, Volume2 } from "lucide-react";
 
 import { speak } from "@/lib/speak";
-import { api, getToken, Mission, Question, QuestionOption, Task } from "@/services/api";
+import { api, getToken, Level, Mission, Question, QuestionOption, Task } from "@/services/api";
 
 const TASK_TYPES = ["multiple_choice", "vocabulary_game", "translation"];
 const QUESTION_TYPES = ["multiple_choice", "fill_blank", "translation", "image_match"];
@@ -17,6 +17,7 @@ export default function MissionEditorPage() {
   const missionId = Number(params.id);
 
   const [mission, setMission] = useState<Mission | null>(null);
+  const [levels, setLevels] = useState<Level[]>([]);
   const [levelCode, setLevelCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,8 +26,9 @@ export default function MissionEditorPage() {
     const m = await api.mission(missionId);
     setMission(m);
     try {
-      const levels = await api.levels();
-      setLevelCode(levels.find((l) => l.id === m.level_id)?.code ?? "");
+      const lvls = await api.levels();
+      setLevels(lvls);
+      setLevelCode(lvls.find((l) => l.id === m.level_id)?.code ?? "");
     } catch {
       /* ignore */
     }
@@ -78,6 +80,8 @@ export default function MissionEditorPage() {
 
       {error && <p className="eq-caption mt-3 accent">{error}</p>}
 
+      <MissionProperties mission={mission} levels={levels} busy={busy} run={run} />
+
       <div className="mt-8 grid gap-6">
         {mission.tasks.map((task) => (
           <TaskBlock key={task.id} task={task} busy={busy} run={run} />
@@ -101,6 +105,90 @@ export default function MissionEditorPage() {
         <Plus size={16} /> Add task
       </button>
     </main>
+  );
+}
+
+function MissionProperties({
+  mission,
+  levels,
+  busy,
+  run,
+}: {
+  mission: Mission;
+  levels: Level[];
+  busy: boolean;
+  run: (fn: () => Promise<unknown>) => void;
+}) {
+  const [title, setTitle] = useState(mission.title);
+  const [description, setDescription] = useState(mission.description ?? "");
+  const [levelId, setLevelId] = useState(mission.level_id);
+  const [orderIndex, setOrderIndex] = useState(mission.order_index);
+  const [isActive, setIsActive] = useState(mission.is_active);
+
+  return (
+    <section className="eq-card mt-6">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5 sm:col-span-2">
+          <span className="eq-label">Title</span>
+          <input className="eq-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <label className="grid gap-1.5 sm:col-span-2">
+          <span className="eq-label">Description</span>
+          <textarea
+            className="eq-input"
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="eq-label">Level</span>
+          <select
+            className="eq-input"
+            value={levelId}
+            onChange={(e) => setLevelId(Number(e.target.value))}
+          >
+            {levels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.code}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="eq-label">Order (1–5)</span>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            className="eq-input"
+            value={orderIndex}
+            onChange={(e) => setOrderIndex(Number(e.target.value))}
+          />
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+          <span className="eq-label">Active (visible to students)</span>
+        </label>
+      </div>
+      <button
+        className="btn-eq mt-4"
+        disabled={busy || title.trim().length === 0}
+        onClick={() =>
+          run(() =>
+            api.updateMission(mission.id, {
+              title: title.trim(),
+              description: description || null,
+              level_id: levelId,
+              order_index: orderIndex,
+              is_active: isActive,
+            }),
+          )
+        }
+      >
+        Save mission
+      </button>
+    </section>
   );
 }
 

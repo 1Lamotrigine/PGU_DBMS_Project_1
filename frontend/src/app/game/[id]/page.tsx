@@ -47,6 +47,8 @@ export default function GamePage() {
   const queueRef = useRef<VocabularyItem[]>([]);
   const recognitionRef = useRef<any>(null);
   const micStoppedRef = useRef(false);
+  const attemptIdRef = useRef<number | null>(null);
+  const answersRef = useRef<{ item_id: number; word: string }[]>([]);
 
   useEffect(() => {
     livesRef.current = lives;
@@ -54,7 +56,7 @@ export default function GamePage() {
     vocabRef.current = vocab;
   }, [lives, cleared, vocab]);
 
-  const normalize = (v: string) => v.toLowerCase().replace(/[^a-z\s]/g, "").trim();
+  const normalize = (v: string): string[] => v.toLowerCase().match(/[a-z0-9]+/g) ?? [];
 
   // ---- load ----
   useEffect(() => {
@@ -67,12 +69,14 @@ export default function GamePage() {
       setSpeechSupported(Boolean(w.SpeechRecognition || w.webkitSpeechRecognition));
     }
     api
-      .missionVocabulary(missionId)
-      .then((v) => {
+      .startAttempt(missionId, "game")
+      .then((res) => {
+        const v = res.items ?? [];
         if (v.length < 2) {
           setError("Not enough vocabulary for this mission yet.");
           return;
         }
+        attemptIdRef.current = res.attempt_id;
         setVocab(v);
         vocabRef.current = v;
         // shuffled queue — every word appears exactly once
@@ -89,7 +93,7 @@ export default function GamePage() {
       micStoppedRef.current = true;
       stopMic();
       try {
-        const res = await api.submitGame(missionId, Math.min(finalCleared, WIN_WORDS), WIN_WORDS);
+        const res = await api.submitGame(missionId, attemptIdRef.current ?? 0, answersRef.current);
         setFinished({ success: res.success, percent: res.percent, xp_awarded: res.xp_awarded });
       } catch (e) {
         setError((e as Error).message);
@@ -137,7 +141,7 @@ export default function GamePage() {
       const pick = queueRef.current.shift();
       if (!pick) return;
       const id = nextIdRef.current++;
-      const lane: Lane = { id, ru: pick.word_ru, en: pick.word_en, image: pick.image_url };
+      const lane: Lane = { id, itemId: pick.id, ru: pick.word_ru, en: pick.word_en, image: pick.image_url };
       liveCardsRef.current.set(id, lane);
       sceneRef.current?.addCard(lane);
     }
@@ -252,24 +256,18 @@ export default function GamePage() {
   const handleSpoken = useCallback(
     (spoken: string) => {
       if (finishedRef.current) return;
-      const words = normalize(spoken).split(/\s+/).filter(Boolean);
+      const words = normalize(spoken);
       if (words.length === 0) return;
-      const joined = words.join(" ");
 
-      // find a live card whose English translation was spoken (lenient matching)
+      // find a live card whose English translation was spoken (whole-token matching)
       let matched: { id: number; lane: Lane } | null = null;
       for (const [id, lane] of liveCardsRef.current.entries()) {
-        const target = normalize(lane.en);
-        if (!target) continue;
-        const targetWords = target.split(/\s+/);
+        const targetTokens = normalize(lane.en);
+        if (targetTokens.length === 0) continue;
         const hit =
-          words.includes(target) ||
-          joined === target ||
-          joined.includes(target) ||
-          words.some((w) => w === target) ||
-          // single-word target: allow "a car", "cars", "the car" etc.
-          (targetWords.length === 1 &&
-            words.some((w) => w === target || w.replace(/s$/, "") === target.replace(/s$/, "")));
+          targetTokens.length === 1
+            ? words.includes(targetTokens[0])
+            : words.join(" ").includes(targetTokens.join(" "));
         if (hit) {
           matched = { id, lane };
           break;
@@ -278,6 +276,10 @@ export default function GamePage() {
 
       if (matched) {
         liveCardsRef.current.delete(matched.id);
+        // Record the spoken word against the issued vocabulary item for the server.
+        if (matched.lane.itemId != null) {
+          answersRef.current.push({ item_id: matched.lane.itemId, word: spoken });
+        }
         sceneRef.current?.destroyCard(matched.id, true);
         setLastResult("hit");
         window.setTimeout(() => setLastResult(null), 350);

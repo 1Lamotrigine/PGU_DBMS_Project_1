@@ -215,6 +215,12 @@ async def seed(db: AsyncSession) -> None:
             await db.flush()
         level_objects[code] = level
 
+    # In production we seed only roles and levels; demo content and the teacher
+    # account are skipped unless SEED_DEMO=true.
+    if not settings.SEED_DEMO:
+        await db.commit()
+        return
+
     # Calibration questions
     calib_count = await db.execute(select(func.count(CalibrationQuestion.id)))
     if int(calib_count.scalar_one()) == 0:

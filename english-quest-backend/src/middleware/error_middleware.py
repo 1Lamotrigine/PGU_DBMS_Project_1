@@ -3,15 +3,23 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("english_quest")
 
 
-def _error_response(status_code: int, code: str, message: str, details: list | None = None) -> JSONResponse:
+def _error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    details: list | None = None,
+    headers: dict | None = None,
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content={"error": {"code": code, "message": message, "details": details or []}},
+        headers=headers,
     )
 
 
@@ -33,8 +41,18 @@ def register_exception_handlers(app: FastAPI) -> None:
                 detail.get("code", "HTTP_ERROR"),
                 detail.get("message", str(detail)),
                 detail.get("details", []),
+                headers=exc.headers,
             )
-        return _error_response(exc.status_code, "HTTP_ERROR", str(detail))
+        return _error_response(exc.status_code, "HTTP_ERROR", str(detail), headers=exc.headers)
+
+    @app.exception_handler(IntegrityError)
+    async def integrity_handler(request: Request, exc: IntegrityError):
+        logger.warning("Integrity error: %s", exc)
+        return _error_response(
+            409,
+            "CONFLICT",
+            "The request conflicts with existing data",
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_handler(request: Request, exc: Exception):

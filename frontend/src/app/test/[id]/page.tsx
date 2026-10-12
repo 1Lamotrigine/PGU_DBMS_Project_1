@@ -17,7 +17,7 @@ export default function TestPage() {
 
   const [mission, setMission] = useState<Mission | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, { option_id?: number; text?: string }>>({});
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ percent: number; passed: boolean } | null>(null);
@@ -32,7 +32,11 @@ export default function TestPage() {
       .mission(missionId)
       .then((m) => {
         setMission(m);
-        setQuestions(m.tasks.filter((t) => t.type === "multiple_choice").flatMap((t) => t.questions ?? []));
+        setQuestions(
+          m.tasks
+            .filter((t) => ["multiple_choice", "fill_blank", "image_match"].includes(t.type))
+            .flatMap((t) => t.questions ?? []),
+        );
       })
       .catch((e) => setError(e.message));
   }, [missionId, router]);
@@ -40,11 +44,12 @@ export default function TestPage() {
   async function submit() {
     setSubmitting(true);
     try {
-      const correct = questions.filter((q) => {
-        const correctOption = q.options.find((o) => o.is_correct);
-        return correctOption && answers[q.id] === correctOption.id;
-      }).length;
-      const res = await api.submitTests(missionId, correct, questions.length);
+      const payload = questions.map((q) => {
+        const a = answers[q.id];
+        if (a?.text != null) return { question_id: q.id, text: a.text };
+        return { question_id: q.id, option_id: a?.option_id };
+      });
+      const res = await api.submitTests(missionId, payload);
       setResult({ percent: res.percent, passed: res.passed });
     } catch (e) {
       setError((e as Error).message);
@@ -72,9 +77,16 @@ export default function TestPage() {
   }
 
   const total = questions.length;
-  const answeredTotal = Object.keys(answers).length;
+  const answeredTotal = Object.values(answers).filter(
+    (a) => a.option_id != null || (a.text ?? "").trim() !== "",
+  ).length;
   const current = questions[step];
   const picked = current ? answers[current.id] : undefined;
+  const isTextAnswer =
+    current?.question_type === "fill_blank" || current?.question_type === "translation";
+  const currentAnswered = isTextAnswer
+    ? (picked?.text ?? "").trim() !== ""
+    : picked?.option_id != null;
   const isLast = step >= total - 1;
   const allAnswered = answeredTotal === total;
 
@@ -112,35 +124,45 @@ export default function TestPage() {
             <span className="eq-quiz__badge">Question {step + 1}</span>
             <h2 className="eq-quiz__q">{current.question_text}</h2>
 
-            <div className="grid gap-2.5">
-              {current.options.map((o, i) => {
-                const active = picked === o.id;
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    className={`eq-opt ${active ? "selected" : ""}`}
-                    onClick={() => setAnswers((prev) => ({ ...prev, [current.id]: o.id }))}
-                    aria-pressed={active}
-                  >
-                    <span className="eq-opt__key">{LETTERS[i] ?? i + 1}</span>
-                    <span className="eq-opt__text">{o.option_text}</span>
-                    <span className="eq-opt__check">
-                      <Check size={20} strokeWidth={2.5} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {isTextAnswer ? (
+              <input
+                className="eq-input"
+                placeholder="Type your answer"
+                value={picked?.text ?? ""}
+                onChange={(e) =>
+                  setAnswers((prev) => ({ ...prev, [current.id]: { text: e.target.value } }))
+                }
+              />
+            ) : (
+              <div className="grid gap-2.5">
+                {current.options.map((o, i) => {
+                  const active = picked?.option_id === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      className={`eq-opt ${active ? "selected" : ""}`}
+                      onClick={() => setAnswers((prev) => ({ ...prev, [current.id]: { option_id: o.id } }))}
+                      aria-pressed={active}
+                    >
+                      <span className="eq-opt__key">{LETTERS[i] ?? i + 1}</span>
+                      <span className="eq-opt__text">{o.option_text}</span>
+                      <span className="eq-opt__check">
+                        <Check size={20} strokeWidth={2.5} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <div className="eq-dots mt-6">
-            {questions.map((q, i) => (
-              <span
-                key={q.id}
-                className={`eq-dot ${answers[q.id] != null ? "on" : ""} ${i === step ? "cur" : ""}`}
-              />
-            ))}
+            {questions.map((q, i) => {
+              const a = answers[q.id];
+              const on = Boolean(a && (a.option_id != null || (a.text ?? "").trim() !== ""));
+              return <span key={q.id} className={`eq-dot ${on ? "on" : ""} ${i === step ? "cur" : ""}`} />;
+            })}
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3">
@@ -166,7 +188,7 @@ export default function TestPage() {
               <button
                 className="btn-eq"
                 type="button"
-                disabled={picked == null}
+                disabled={!currentAnswered}
                 onClick={() => setStep((s) => Math.min(total - 1, s + 1))}
               >
                 Next <ArrowRight size={16} />

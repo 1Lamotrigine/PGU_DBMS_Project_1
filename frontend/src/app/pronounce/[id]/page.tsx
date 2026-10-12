@@ -28,6 +28,7 @@ export default function PronouncePage() {
   const [correctCount, setCorrectCount] = useState(0);
   const recognitionRef = useRef<any>(null);
   const correctRef = useRef(0);
+  const answersRef = useRef<{ item_id: number; word: string }[]>([]);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -50,20 +51,22 @@ export default function PronouncePage() {
       .catch((e) => setError(e.message));
   }, [missionId, router]);
 
-  const normalize = (v: string) => v.toLowerCase().replace(/[^a-z\s]/g, "").trim();
+  const normalizeTokens = (v: string): string[] => v.toLowerCase().match(/[a-z0-9]+/g) ?? [];
 
   const evaluate = useCallback((spoken: string, expected: string) => {
-    const words = normalize(spoken).split(/\s+/).filter(Boolean);
-    const target = normalize(expected);
-    const joined = words.join(" ");
-    return words.includes(target) || joined === target || joined.includes(target);
+    const spokenTokens = normalizeTokens(spoken);
+    const targetTokens = normalizeTokens(expected);
+    if (spokenTokens.length === 0 || targetTokens.length === 0) return false;
+    // Whole-token matching: "car" must not match "carpet".
+    if (targetTokens.length === 1) return spokenTokens.includes(targetTokens[0]);
+    return spokenTokens.join(" ").includes(targetTokens.join(" "));
   }, []);
 
   const completePronunciation = useCallback(
-    async (finalCorrect: number, total: number) => {
+    async (answers: { item_id: number; word: string }[]) => {
       setDone(true);
       try {
-        const res = await api.submitPronunciation(missionId, finalCorrect, total);
+        const res = await api.submitPronunciation(missionId, answers);
         setResult({ percent: res.percent, passed: res.passed });
       } catch (e) {
         setError((e as Error).message);
@@ -74,8 +77,10 @@ export default function PronouncePage() {
 
   // Finalise a word result and move on — no retry, no text input.
   const resolveWord = useCallback(
-    (correct: boolean) => {
+    (spoken: string, expected: string, itemId: number) => {
+      const correct = evaluate(spoken, expected);
       setStatus(correct ? "correct" : "wrong");
+      answersRef.current.push({ item_id: itemId, word: spoken });
       if (correct) {
         correctRef.current += 1;
         setCorrectCount(correctRef.current);
@@ -87,18 +92,18 @@ export default function PronouncePage() {
         setIndex((prev) => {
           const next = prev + 1;
           if (next >= items.length) {
-            void completePronunciation(correctRef.current, items.length);
+            void completePronunciation(answersRef.current);
             return prev;
           }
           return next;
         });
       }, 1100);
     },
-    [items.length, completePronunciation],
+    [items.length, completePronunciation, evaluate],
   );
 
   const startListening = useCallback(
-    (expected: string) => {
+    (expected: string, itemId: number) => {
       const w = window as any;
       const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
       if (!Ctor) {
@@ -116,7 +121,7 @@ export default function PronouncePage() {
         setTranscript(text);
         if (event.results[event.results.length - 1].isFinal) {
           handled = true;
-          resolveWord(evaluate(text, expected));
+          resolveWord(text, expected, itemId);
         }
       };
       r.onerror = () => setStatus((p) => (p === "listening" ? "idle" : p));
@@ -130,7 +135,7 @@ export default function PronouncePage() {
         setStatus("idle");
       }
     },
-    [evaluate, resolveWord],
+    [resolveWord],
   );
 
   function stopListening() {
@@ -159,6 +164,7 @@ export default function PronouncePage() {
           setIndex(0);
           setStatus("idle");
           correctRef.current = 0;
+          answersRef.current = [];
           setCorrectCount(0);
           setResult(null);
         }}
@@ -215,7 +221,7 @@ export default function PronouncePage() {
           <button
             className={`eq-circle available ${status === "listening" ? "mic-active" : ""}`}
             style={{ width: 92, height: 92, marginTop: 6 }}
-            onClick={() => (status === "listening" ? stopListening() : startListening(current.word_en))}
+            onClick={() => (status === "listening" ? stopListening() : startListening(current.word_en, current.id))}
             disabled={answered}
             aria-label="Speak"
           >
@@ -233,7 +239,7 @@ export default function PronouncePage() {
           <p style={{ margin: 0, color: "var(--eq-accent)", fontWeight: 500 }}>Correct</p>
         )}
         {status === "wrong" && (
-          <p style={{ margin: 0, fontWeight: 500 }}>Not quite — it's “{current.word_en}”. No point this time.</p>
+          <p style={{ margin: 0, fontWeight: 500 }}>Not quite — it&apos;s “{current.word_en}”. No point this time.</p>
         )}
       </div>
 

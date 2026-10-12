@@ -5,7 +5,14 @@ from passlib.context import CryptContext
 
 from src.config.settings import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+# bcrypt only uses the first 72 bytes; raise instead of silently truncating so
+# two different long passwords can never map to the same hash.
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12,
+    bcrypt__truncate_error=True,
+)
 
 
 def hash_password(password: str) -> str:

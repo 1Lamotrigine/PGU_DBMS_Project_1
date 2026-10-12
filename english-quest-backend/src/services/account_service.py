@@ -1,6 +1,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from anyio import to_thread
 
 from src.models.models import Role, User
 from src.services.security import create_access_token, hash_password, verify_password
@@ -41,15 +44,23 @@ async def register_user(db: AsyncSession, payload) -> dict:
         )
 
     role = await _default_student_role(db)
+    password_hash = await to_thread.run_sync(hash_password, payload.password)
     user = User(
         first_name=payload.firstName,
         last_name=payload.lastName,
         email=payload.email,
-        password_hash=hash_password(payload.password),
+        password_hash=password_hash,
         role_id=role.id,
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "EMAIL_TAKEN", "message": "Email is already registered", "details": []},
+        )
 
     user = await get_user_by_email(db, payload.email)
     token = create_access_token(user.id, role.name)
@@ -58,7 +69,10 @@ async def register_user(db: AsyncSession, payload) -> dict:
 
 async def login_user(db: AsyncSession, payload) -> dict:
     user = await get_user_by_email(db, payload.email)
-    if user is None or not verify_password(payload.password, user.password_hash):
+    password_ok = False
+    if user is not None:
+        password_ok = await to_thread.run_sync(verify_password, payload.password, user.password_hash)
+    if user is None or not password_ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "INVALID_CREDENTIALS", "message": "Invalid email or password", "details": []},

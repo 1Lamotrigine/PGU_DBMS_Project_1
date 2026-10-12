@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config.database import Base, AsyncSessionLocal, engine
 from src.config.settings import settings
 from src.middleware.error_middleware import register_exception_handlers
+from src.middleware.security_middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 from src.routes.auth_routes import calibration_router, router as auth_router
 from src.routes.game_routes import router as game_router
 from src.routes.mission_routes import levels_router, vocabulary_router, router as mission_router
@@ -37,10 +38,13 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
-        allow_origin_regex=settings.CORS_ORIGIN_REGEX,
+        # Never allow the permissive localhost regex in production.
+        allow_origin_regex=None if settings.is_production else settings.CORS_ORIGIN_REGEX,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

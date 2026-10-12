@@ -60,7 +60,7 @@ async def mission_vocabulary(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    return await get_mission_vocabulary(db, mission_id)
+    return await get_mission_vocabulary(db, mission_id, current_user)
 
 
 async def recommended_missions(
