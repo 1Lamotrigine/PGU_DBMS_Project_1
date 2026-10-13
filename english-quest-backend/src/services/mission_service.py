@@ -451,7 +451,11 @@ async def create_task(db: AsyncSession, mission_id: int, payload) -> dict:
         xp_reward_repeat=payload.xp_reward_repeat,
     )
     db.add(task)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(task)
     return _serialize_task(task)
 
@@ -460,7 +464,11 @@ async def update_task(db: AsyncSession, task_id: int, payload) -> dict:
     task = await _get_or_404(db, Task, task_id, "Task")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(task)
     return _serialize_task(task)
 
@@ -468,7 +476,11 @@ async def update_task(db: AsyncSession, task_id: int, payload) -> dict:
 async def delete_task(db: AsyncSession, task_id: int) -> dict:
     task = await _get_or_404(db, Task, task_id, "Task")
     await db.delete(task)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     return {"deleted": True, "id": task_id}
 
 
@@ -481,7 +493,11 @@ async def create_question(db: AsyncSession, task_id: int, payload) -> dict:
         question_type=payload.question_type,
     )
     db.add(question)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     return _serialize_question(await _load_question(db, question.id))
 
 
@@ -489,14 +505,22 @@ async def update_question(db: AsyncSession, question_id: int, payload) -> dict:
     question = await _get_or_404(db, Question, question_id, "Question")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     return _serialize_question(await _load_question(db, question_id))
 
 
 async def delete_question(db: AsyncSession, question_id: int) -> dict:
     question = await _get_or_404(db, Question, question_id, "Question")
     await db.delete(question)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     return {"deleted": True, "id": question_id}
 
 
@@ -511,7 +535,11 @@ async def create_option(db: AsyncSession, question_id: int, payload) -> dict:
         translation_ru=payload.translation_ru,
     )
     db.add(option)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(option)
     return _serialize_option(option)
 
@@ -520,7 +548,11 @@ async def update_option(db: AsyncSession, option_id: int, payload) -> dict:
     option = await _get_or_404(db, QuestionOption, option_id, "Option")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(option, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(option)
     return _serialize_option(option)
 
@@ -528,7 +560,11 @@ async def update_option(db: AsyncSession, option_id: int, payload) -> dict:
 async def delete_option(db: AsyncSession, option_id: int) -> dict:
     option = await _get_or_404(db, QuestionOption, option_id, "Option")
     await db.delete(option)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     return {"deleted": True, "id": option_id}
 
 
@@ -562,7 +598,11 @@ async def create_vocabulary(db: AsyncSession, level_id: int, payload) -> dict:
         image_url=payload.image_url,
     )
     db.add(item)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(item)
     return _serialize_vocab(item)
 
@@ -571,12 +611,20 @@ async def update_vocabulary(db: AsyncSession, vocab_id: int, payload) -> dict:
     item = await _get_or_404(db, VocabularyItem, vocab_id, "Vocabulary item")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(item)
     return _serialize_vocab(item)
 
 async def delete_vocabulary(db: AsyncSession, vocab_id: int) -> dict:
     item = await _get_or_404(db, VocabularyItem, vocab_id, "Vocabulary item")
     await db.delete(item)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     return {"deleted": True, "id": vocab_id}

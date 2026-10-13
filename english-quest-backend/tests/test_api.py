@@ -189,3 +189,21 @@ async def test_progress_preview_access_control(client):
     headers = await _register(client, "priv@example.com")
     r = await client.get("/api/v1/students/1/progress-preview", headers=headers)
     assert r.status_code in (403, 404)
+
+
+async def test_failed_calibration_leaves_no_partial_state(client):
+    """A rejected calibration must not change the user or create progress rows."""
+    headers = await _register(client, "rollback@example.com")
+    me_before = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    questions = (await client.get("/api/v1/calibration/questions", headers=headers)).json()
+    # Incomplete submission -> 400, must not calibrate the user.
+    r = await client.post(
+        "/api/v1/calibration/submit",
+        headers=headers,
+        json={"answers": [{"question_id": questions[0]["id"], "selected_option": "A"}]},
+    )
+    assert r.status_code == 400
+    me_after = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    assert me_after["is_calibrated"] is False
+    assert me_after["cefr_level"] == me_before["cefr_level"]
+    assert me_after["total_xp"] == me_before["total_xp"]

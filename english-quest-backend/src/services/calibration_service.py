@@ -106,15 +106,19 @@ async def submit_calibration(db: AsyncSession, user: User, payload) -> dict:
     user.is_calibrated = True
 
     new_total = user.total_xp or 0
-    if starting_xp:
-        new_total = await db.scalar(
-            update(User)
-            .where(User.id == user.id)
-            .values(total_xp=func.coalesce(User.total_xp, 0) + starting_xp)
-            .returning(User.total_xp)
-        )
-
-    await db.commit()
+    try:
+        if starting_xp:
+            new_total = await db.scalar(
+                update(User)
+                .where(User.id == user.id)
+                .values(total_xp=func.coalesce(User.total_xp, 0) + starting_xp)
+                .returning(User.total_xp)
+            )
+        # One transaction: level change, auto-completed missions and start XP.
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
 
     return {
         "cefr_level": cefr_code,

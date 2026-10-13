@@ -126,7 +126,11 @@ async def start_attempt(db: AsyncSession, mission_id: int, user: User, module: s
         issued=json.dumps(issued_ids),
     )
     db.add(attempt)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(attempt)
     payload["attempt_id"] = attempt.id
     return payload
@@ -197,7 +201,11 @@ async def submit_tests(db: AsyncSession, mission_id: int, user: User, payload) -
         db.add(progress)
     if passed:
         progress.tests_passed = True
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
 
     return {"tests_passed": progress.tests_passed, "percent": round(percent, 2), "passed": passed}
 
@@ -220,7 +228,11 @@ async def submit_pronunciation(db: AsyncSession, mission_id: int, user: User, pa
     passed = percent >= settings.GAME_PASS_THRESHOLD
     if passed:
         progress.pronunciation_passed = True
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
 
     return {
         "pronunciation_passed": progress.pronunciation_passed,
@@ -285,72 +297,90 @@ async def submit_game(db: AsyncSession, mission_id: int, user: User, payload) ->
     percent = await _word_percent(db, mission, payload, total_override=len(issued_ids) or None)
     passed = percent >= settings.GAME_PASS_THRESHOLD
 
-    # Complete the attempt exactly once (conditional update guards against races).
     completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    claim = await db.execute(
-        update(MissionAttempt)
-        .where(MissionAttempt.id == attempt.id, MissionAttempt.status == "in_progress")
-        .values(
-            status="completed" if passed else "failed",
-            score=round(percent, 2),
-            completed_at=completed_at,
+
+    # Everything below is one atomic unit: closing the attempt, awarding XP and
+    # updating progress either all succeed together or none of them do.
+    try:
+        # Complete the attempt exactly once (conditional update guards against races).
+        claim = await db.execute(
+            update(MissionAttempt)
+            .where(MissionAttempt.id == attempt.id, MissionAttempt.status == "in_progress")
+            .values(
+                status="completed" if passed else "failed",
+                score=round(percent, 2),
+                completed_at=completed_at,
+            )
+            .returning(MissionAttempt.id)
         )
-        .returning(MissionAttempt.id)
-    )
-    if claim.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "ATTEMPT_ALREADY_COMPLETED", "message": "This attempt was already submitted"},
+        if claim.scalar_one_or_none() is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "ATTEMPT_ALREADY_COMPLETED",
+                    "message": "This attempt was already submitted",
+                },
+            )
+
+        if not passed:
+            await db.commit()
+            return {
+                "success": False,
+                "percent": round(percent, 2),
+                "xp_awarded": 0,
+                "total_xp": user.total_xp,
+            }
+
+        # First completion vs repeat is decided by prior completed attempts.
+        completed_before = await db.scalar(
+            select(func.count(MissionAttempt.id)).where(
+                MissionAttempt.user_id == user.id,
+                MissionAttempt.mission_id == mission_id,
+                MissionAttempt.module == "game",
+                MissionAttempt.status == "completed",
+                MissionAttempt.id != attempt.id,
+            )
+        )
+        first_time = int(completed_before or 0) == 0
+
+        xp = await _xp_sum(db, mission_id, Task.xp_reward_first if first_time else Task.xp_reward_repeat)
+
+        best_score = max(progress.best_score_percentage or 0.0, percent)
+
+        # Atomic XP increment: never read-modify-write total_xp.
+        new_total = await db.scalar(
+            update(User)
+            .where(User.id == user.id)
+            .values(total_xp=func.coalesce(User.total_xp, 0) + xp)
+            .returning(User.total_xp)
+            .execution_options(synchronize_session=False)
+        )
+        attempt.xp_earned = xp
+
+        # Atomic completion counter; RETURNING avoids re-reading the ORM object.
+        new_completion = await db.scalar(
+            update(UserMissionProgress)
+            .where(
+                UserMissionProgress.user_id == user.id,
+                UserMissionProgress.mission_id == mission_id,
+            )
+            .values(
+                is_completed=True,
+                completion_count=func.coalesce(UserMissionProgress.completion_count, 0) + 1,
+                best_score_percentage=best_score,
+                last_completed_at=completed_at,
+            )
+            .returning(UserMissionProgress.completion_count)
+            .execution_options(synchronize_session=False)
         )
 
-    if not passed:
         await db.commit()
-        return {"success": False, "percent": round(percent, 2), "xp_awarded": 0, "total_xp": user.total_xp}
-
-    # First completion vs repeat is decided by prior completed attempts.
-    completed_before = await db.scalar(
-        select(func.count(MissionAttempt.id)).where(
-            MissionAttempt.user_id == user.id,
-            MissionAttempt.mission_id == mission_id,
-            MissionAttempt.module == "game",
-            MissionAttempt.status == "completed",
-            MissionAttempt.id != attempt.id,
-        )
-    )
-    first_time = int(completed_before or 0) == 0
-
-    xp = await _xp_sum(db, mission_id, Task.xp_reward_first if first_time else Task.xp_reward_repeat)
-
-    best_score = max(progress.best_score_percentage or 0.0, percent)
-
-    # Atomic XP increment: never read-modify-write total_xp.
-    new_total = await db.scalar(
-        update(User)
-        .where(User.id == user.id)
-        .values(total_xp=func.coalesce(User.total_xp, 0) + xp)
-        .returning(User.total_xp)
-        .execution_options(synchronize_session=False)
-    )
-    attempt.xp_earned = xp
-
-    # Atomic completion counter; RETURNING avoids re-reading the ORM object.
-    new_completion = await db.scalar(
-        update(UserMissionProgress)
-        .where(
-            UserMissionProgress.user_id == user.id,
-            UserMissionProgress.mission_id == mission_id,
-        )
-        .values(
-            is_completed=True,
-            completion_count=func.coalesce(UserMissionProgress.completion_count, 0) + 1,
-            best_score_percentage=best_score,
-            last_completed_at=completed_at,
-        )
-        .returning(UserMissionProgress.completion_count)
-        .execution_options(synchronize_session=False)
-    )
-
-    await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise
 
     return {
         "success": True,

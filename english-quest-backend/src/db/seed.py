@@ -342,4 +342,10 @@ async def seed(db: AsyncSession) -> None:
 
             db.add(mission)
 
-    await db.commit()
+    # One transaction for the whole seed: roles, levels, content and accounts
+    # are applied together or not at all.
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
