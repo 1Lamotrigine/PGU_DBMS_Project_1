@@ -5,6 +5,7 @@ from src.controllers import user_controller
 router = APIRouter(prefix="/users", tags=["Users"])
 
 router.add_api_route("/me/progress", user_controller.my_progress, methods=["GET"])
+router.add_api_route("/leaderboard", user_controller.leaderboard, methods=["GET"])
 
 
 students_router = APIRouter(prefix="/students", tags=["Students"])

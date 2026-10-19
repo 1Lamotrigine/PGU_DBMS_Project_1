@@ -41,7 +41,8 @@ export default function LevelPage() {
   const currentIndex = missions.findIndex((m) => !m.progress?.is_completed);
 
   function stateFor(i: number): CircleState {
-    if (level!.locked) return "locked";
+    // Trust the server-side lock first (sequential unlock within the level).
+    if (missions[i].locked) return "locked";
     if (missions[i].progress?.is_completed) return "done";
     if (i === currentIndex) return "current";
     return i < currentIndex ? "done" : "locked";

@@ -55,24 +55,31 @@ async def list_levels(db: AsyncSession, user) -> list[dict]:
     progress_map = {p.mission_id: p for p in progress_result.scalars().all()}
 
     order = settings.CEFR_ORDER
-    user_rank = order.index(user.cefr_level) if user.cefr_level in order else 0
+    unlocked_rank = user.unlocked_level_rank or 0
+    teacher = is_teacher(user)
 
     payload = []
     for level in levels:
         level_rank = order.index(level.code) if level.code in order else 0
-        locked = level_rank > user_rank
+        locked = (not teacher) and level_rank > unlocked_rank
         missions_payload = []
+        # Sequential unlock: a mission is available if the previous one is done.
+        prev_completed = True
         for m in sorted(level.missions, key=lambda m: m.order_index):
-            mission_payload = _serialize_mission(m, locked=locked)
             progress = progress_map.get(m.id)
+            completed = bool(progress and progress.is_completed)
+            mission_locked = locked or (not teacher and not prev_completed)
+            mission_payload = _serialize_mission(m, locked=mission_locked)
             mission_payload["progress"] = {
                 "is_completed": progress.is_completed if progress else False,
                 "tests_passed": progress.tests_passed if progress else False,
                 "pronunciation_passed": progress.pronunciation_passed if progress else False,
                 "best_score_percentage": progress.best_score_percentage if progress else 0.0,
                 "completion_count": progress.completion_count if progress else 0,
+                "xp_earned": progress.xp_earned if progress else 0,
             }
             missions_payload.append(mission_payload)
+            prev_completed = completed
         payload.append(
             {
                 "id": level.id,

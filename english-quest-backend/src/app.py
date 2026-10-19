@@ -20,6 +20,10 @@ from src.models import models  # noqa: F401
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all does not alter existing tables; add new columns here.
+        from src.db.migrations import run_startup_migrations
+
+        await run_startup_migrations(conn)
 
     from src.db.seed import seed
 

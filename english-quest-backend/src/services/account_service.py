@@ -19,6 +19,7 @@ def serialize_user(user: User) -> dict:
         "email": user.email,
         "role": user.role.name if user.role else None,
         "cefr_level": user.cefr_level,
+        "unlocked_level_rank": user.unlocked_level_rank or 0,
         "total_xp": user.total_xp,
         "is_calibrated": user.is_calibrated,
     }

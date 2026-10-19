@@ -57,6 +57,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     cefr_level: Mapped[str] = mapped_column(String(5), default="A1")
     level_id: Mapped[int | None] = mapped_column(ForeignKey("levels.id"), nullable=True)
+    # Highest level rank (index into CEFR_ORDER) the student has unlocked.
+    unlocked_level_rank: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     total_xp: Mapped[int] = mapped_column(Integer, default=0)
     is_calibrated: Mapped[bool] = mapped_column(Boolean, default=False)
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
@@ -193,6 +195,8 @@ class UserMissionProgress(Base):
     pronunciation_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     best_score_percentage: Mapped[float] = mapped_column(Float, default=0.0)
     completion_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Total XP earned on this mission (sum across completed attempts).
+    xp_earned: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     last_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="progress")

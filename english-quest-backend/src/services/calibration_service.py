@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import settings
 from src.models.models import CalibrationQuestion, Level, Mission, Task, User, UserMissionProgress
+from src.services.progression_service import rank_of
 
 
 def _level_for_percentage(percent: float) -> str:
@@ -104,6 +105,8 @@ async def submit_calibration(db: AsyncSession, user: User, payload) -> dict:
     user.cefr_level = cefr_code
     user.level_id = level.id if level else None
     user.is_calibrated = True
+    # Calibration determines the starting unlocked level.
+    user.unlocked_level_rank = rank_of(cefr_code)
 
     new_total = user.total_xp or 0
     try:

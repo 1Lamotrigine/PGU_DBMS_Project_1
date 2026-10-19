@@ -95,6 +95,7 @@ export const api = {
       { method: "POST", body: { attempt_id: attemptId, answers } },
     ),
   myProgress: () => apiRequest<Progress>("/users/me/progress"),
+  leaderboard: (limit = 10) => apiRequest<LeaderboardEntry[]>(`/users/leaderboard?limit=${limit}`),
   createMission: (payload: unknown) => apiRequest<Mission>("/missions", { method: "POST", body: payload }),
   updateMission: (id: number, payload: unknown) =>
     apiRequest<Mission>(`/missions/${id}`, { method: "PUT", body: payload }),
@@ -140,6 +141,7 @@ export type UserProfile = {
   email: string;
   role: string;
   cefr_level: string;
+  unlocked_level_rank: number;
   total_xp: number;
   is_calibrated: boolean;
 };
@@ -187,6 +189,7 @@ export type Mission = {
     pronunciation_passed: boolean;
     best_score_percentage: number;
     completion_count: number;
+    xp_earned?: number;
   };
 };
 
@@ -202,11 +205,19 @@ export type Progress = {
   user_id: number;
   name: string;
   cefr_level: string;
+  level: number;
+  unlocked_level_rank: number;
   total_xp: number;
   is_calibrated: boolean;
   completed_missions: number;
   available_missions: number;
   total_missions: number;
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  name: string;
+  total_xp: number;
 };
 
 export type CalibrationQuestion = {

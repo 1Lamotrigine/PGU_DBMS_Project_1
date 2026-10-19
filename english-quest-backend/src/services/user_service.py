@@ -21,7 +21,8 @@ async def get_user_progress(db: AsyncSession, user) -> dict:
 
     order = settings.CEFR_ORDER
     user_rank = order.index(user.cefr_level) if user.cefr_level in order else 0
-    available_codes = order[: user_rank + 1]
+    unlocked_rank = user.unlocked_level_rank or 0
+    available_codes = order[: unlocked_rank + 1]
 
     # Available = active missions on unlocked levels that the user has not completed.
     completed_subq = select(UserMissionProgress.mission_id).where(
@@ -44,6 +45,7 @@ async def get_user_progress(db: AsyncSession, user) -> dict:
         "name": user.first_name,
         "cefr_level": user.cefr_level,
         "level": user_rank + 1,
+        "unlocked_level_rank": unlocked_rank,
         "total_xp": user.total_xp,
         "is_calibrated": user.is_calibrated,
         "completed_missions": completed,

@@ -60,6 +60,9 @@ pip install -r requirements.txt
 cp .env.example .env          # укажите DATABASE_URL для локального Postgres
 uvicorn src.server:app --host 0.0.0.0 --port 8000
 
+
+source .venv/bin/activate && uvicorn src.server:app --host 0.0.0.0 --port 8000
+
 # 3. Фронтенд (http://localhost:3000)
 cd ../frontend
 npm install
@@ -68,8 +71,20 @@ npm run dev
 
 ```
 
-## Тесты и CI
+## Прогрессия, XP и Scoreboard
 
+* Внутри уровня миссии открываются **последовательно**: сначала только первая, каждая следующая — после завершения предыдущей.
+* Следующий уровень открывается, если набрано **≥ 70 % XP уровня** или пройдены **все 5 миссий** уровня.
+* Открытый уровень хранится в `users.unlocked_level_rank` (индекс CEFR) и **не меняет** `cefr_level` — тот по-прежнему задаётся только калибровкой.
+* Scoreboard: `GET /api/v1/users/leaderboard?limit=10` — топ студентов по `total_xp` (email не раскрывается). Отображается на `/dashboard` справа для всех авторизованных.
+
+Для баз, созданных до этого изменения, выполните миграцию:
+
+```bash
+psql -d english_quest -f english-quest-backend/migrations/001_progression.sql
+```
+
+## Тесты и CI
 ```bash
 cd english-quest-backend
 pip install -r requirements-dev.txt

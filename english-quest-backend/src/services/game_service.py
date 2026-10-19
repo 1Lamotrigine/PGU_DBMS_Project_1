@@ -18,6 +18,7 @@ from src.models.models import (
     VocabularyItem,
 )
 from src.services.access import ensure_mission_accessible
+from src.services.progression_service import recompute_unlocked_rank
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -368,11 +369,15 @@ async def submit_game(db: AsyncSession, mission_id: int, user: User, payload) ->
                 is_completed=True,
                 completion_count=func.coalesce(UserMissionProgress.completion_count, 0) + 1,
                 best_score_percentage=best_score,
+                xp_earned=func.coalesce(UserMissionProgress.xp_earned, 0) + xp,
                 last_completed_at=completed_at,
             )
             .returning(UserMissionProgress.completion_count)
             .execution_options(synchronize_session=False)
         )
+
+        # Recompute how far the student may advance (level unlock by XP or 5/5).
+        await recompute_unlocked_rank(db, user)
 
         await db.commit()
     except HTTPException:

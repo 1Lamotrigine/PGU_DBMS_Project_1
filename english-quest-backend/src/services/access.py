@@ -1,14 +1,8 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config.settings import settings
 from src.models.models import Level, Mission, User
-
-
-def _rank(code: str | None) -> int:
-    order = settings.CEFR_ORDER
-    return order.index(code) if code in order else 0
+from src.services.progression_service import is_mission_unlocked, rank_of
 
 
 def is_teacher(user: User) -> bool:
@@ -19,7 +13,7 @@ async def ensure_mission_accessible(db: AsyncSession, mission: Mission, user: Us
     """Enforce mission availability on the server (not only in the UI).
 
     Teachers may access any mission. Students may only access active missions
-    whose CEFR level is not above their current level.
+    whose level is unlocked and whose predecessor in the level is completed.
     """
     if is_teacher(user):
         return
@@ -30,10 +24,20 @@ async def ensure_mission_accessible(db: AsyncSession, mission: Mission, user: Us
             detail={"code": "MISSION_INACTIVE", "message": "Mission is not available"},
         )
 
+    # Compare the mission's level against the student's unlocked level.
     level = await db.get(Level, mission.level_id)
     level_code = level.code if level else None
-    if _rank(level_code) > _rank(user.cefr_level):
+    if rank_of(level_code) > (user.unlocked_level_rank or 0):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "MISSION_LOCKED", "message": "Mission level is locked for this user"},
+            detail={"code": "LEVEL_LOCKED", "message": "Level is locked for this user"},
+        )
+
+    if not await is_mission_unlocked(db, user.id, mission):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "MISSION_LOCKED",
+                "message": "Complete the previous mission to unlock this one",
+            },
         )

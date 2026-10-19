@@ -207,3 +207,95 @@ async def test_failed_calibration_leaves_no_partial_state(client):
     assert me_after["is_calibrated"] is False
     assert me_after["cefr_level"] == me_before["cefr_level"]
     assert me_after["total_xp"] == me_before["total_xp"]
+
+
+async def _levels(client, headers):
+    return (await client.get("/api/v1/levels", headers=headers)).json()
+
+
+async def _play_mission(client, session, headers, mission_id):
+    """Run test -> pronunciation -> game for a mission, returning the game result."""
+    right = await _answers_for(session, mission_id, correct=True)
+    r = await client.post(f"/api/v1/missions/{mission_id}/submit-tests", headers=headers, json={"answers": right})
+    assert r.status_code == 200 and r.json()["passed"] is True, r.text
+
+    start = (await client.post(f"/api/v1/missions/{mission_id}/start", headers=headers, json={"module": "game"})).json()
+    pa = [{"item_id": i["id"], "word": i["word_en"]} for i in start["items"]]
+    r = await client.post(f"/api/v1/missions/{mission_id}/submit-pronunciation", headers=headers, json={"answers": pa})
+    assert r.status_code == 200 and r.json()["passed"] is True, r.text
+
+    g = (await client.post(f"/api/v1/missions/{mission_id}/start", headers=headers, json={"module": "game"})).json()
+    ga = [{"item_id": i["id"], "word": i["word_en"]} for i in g["items"]]
+    return (
+        await client.post(
+            f"/api/v1/missions/{mission_id}/submit-game",
+            headers=headers,
+            json={"attempt_id": g["attempt_id"], "answers": ga},
+        )
+    ).json()
+
+
+async def test_missions_unlock_sequentially(client):
+    """Only the first mission of a level is open until the previous one is done."""
+    headers = await _register(client, "chain@example.com")
+    levels = await _levels(client, headers)
+    a1 = next(l for l in levels if l["code"] == "A1")
+    missions = sorted(a1["missions"], key=lambda m: m["order_index"])
+    assert missions[0]["locked"] is False
+    assert missions[1]["locked"] is True
+    assert missions[2]["locked"] is True
+
+    # Direct access to a locked mission is rejected server-side.
+    r = await client.get(f"/api/v1/missions/{missions[1]['id']}", headers=headers)
+    assert r.status_code == 403
+
+
+async def test_level_unlocks_after_xp_threshold(client, session):
+    """Completing enough A1 missions (>=70% XP) unlocks A2."""
+    headers = await _register(client, "unlock@example.com")
+    levels = await _levels(client, headers)
+    a1 = next(l for l in levels if l["code"] == "A1")
+    missions = sorted(a1["missions"], key=lambda m: m["order_index"])
+
+    # Play the missions in order; A1 has 5 missions and the threshold is 70% of
+    # the level's maximum XP, so 4 of 5 first-time completions (80%) suffice.
+    for mission in missions[:4]:
+        await _play_mission(client, session, headers, mission["id"])
+
+    me = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    assert me["unlocked_level_rank"] >= 1  # A2 unlocked
+
+    levels_after = await _levels(client, headers)
+    a2 = next(l for l in levels_after if l["code"] == "A2")
+    assert a2["locked"] is False
+    # The demo seed has no A2 missions yet; the level itself must be unlocked.
+    assert a2["missions"] == [] or a2["missions"][0]["locked"] is False
+
+
+async def test_level_unlocks_after_all_missions(client, session):
+    """Completing all 5 A1 missions also unlocks A2."""
+    headers = await _register(client, "allfive@example.com")
+    levels = await _levels(client, headers)
+    a1 = next(l for l in levels if l["code"] == "A1")
+    for mission in sorted(a1["missions"], key=lambda m: m["order_index"]):
+        await _play_mission(client, session, headers, mission["id"])
+    me = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    assert me["unlocked_level_rank"] >= 1
+
+
+async def test_leaderboard_ranks_by_xp_and_hides_email(client, session):
+    low = await _register(client, "low@example.com")
+    high = await _register(client, "high@example.com")
+    # Give the second user some XP.
+    levels = await _levels(client, high)
+    a1 = next(l for l in levels if l["code"] == "A1")
+    missions = sorted(a1["missions"], key=lambda m: m["order_index"])
+    await _play_mission(client, session, high, missions[0]["id"])
+
+    board = (await client.get("/api/v1/users/leaderboard?limit=10", headers=low)).json()
+    assert len(board) >= 1
+    assert board[0]["rank"] == 1
+    assert board[0]["total_xp"] > 0
+    assert "email" not in board[0]
+    xps = [entry["total_xp"] for entry in board]
+    assert xps == sorted(xps, reverse=True)
