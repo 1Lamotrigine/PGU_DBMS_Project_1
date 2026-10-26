@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { api, setToken } from "@/services/api";
 
 export default function LoginPage() {
@@ -21,6 +22,20 @@ export default function LoginPage() {
       const { token } = await api.login({ email, password });
       setToken(token);
       router.push("/dashboard");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onGoogleCredential(credential: string) {
+    setError("");
+    setLoading(true);
+    try {
+      const { token, user } = await api.googleLogin(credential);
+      setToken(token);
+      router.push(user.is_calibrated ? "/dashboard" : "/calibration");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -63,6 +78,15 @@ export default function LoginPage() {
           {loading ? "Signing in…" : "Log in"}
         </button>
       </form>
+
+      <div className="mt-7 grid gap-4">
+        <div className="flex items-center gap-3">
+          <span style={{ height: 2, flex: 1, background: "var(--eq-border)" }} />
+          <span className="eq-caption">or</span>
+          <span style={{ height: 2, flex: 1, background: "var(--eq-border)" }} />
+        </div>
+        <GoogleSignInButton onCredential={onGoogleCredential} disabled={loading} />
+      </div>
 
       <p className="eq-caption mt-6">
         No account?{" "}

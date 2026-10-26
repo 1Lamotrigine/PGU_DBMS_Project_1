@@ -8,7 +8,7 @@ import { ArrowLeft, Check, Lock } from "lucide-react";
 import { api, getToken, Mission } from "@/services/api";
 
 type ModuleDef = {
-  key: "test" | "pronunciation" | "game";
+  key: "test" | "pronunciation" | "game" | "grammar";
   title: string;
   description: string;
   href: (id: number) => string;
@@ -32,6 +32,12 @@ const MODULES: ModuleDef[] = [
     title: "Dictionary game",
     description: "Look at the picture — say the English word",
     href: (id) => `/game/${id}`,
+  },
+  {
+    key: "grammar",
+    title: "Grammar game",
+    description: "Catch the correct word form — tap an answer",
+    href: (id) => `/grammar/${id}`,
   },
 ];
 
@@ -65,11 +71,14 @@ export default function MissionPage() {
   const completed = Boolean(mission.progress?.is_completed);
   const testsPassed = completed || Boolean(mission.progress?.tests_passed);
   const pronunciationPassed = completed || Boolean(mission.progress?.pronunciation_passed);
+  const gamePassed = completed || Boolean(mission.progress?.game_passed);
+  const grammarPassed = Boolean(mission.progress?.grammar_passed);
 
   const status = (key: ModuleDef["key"]) => {
     if (key === "test") return testsPassed ? "done" : "current";
     if (key === "pronunciation") return pronunciationPassed ? "done" : testsPassed ? "current" : "locked";
-    return completed ? "done" : pronunciationPassed ? "current" : "locked";
+    if (key === "game") return gamePassed ? "done" : pronunciationPassed ? "current" : "locked";
+    return grammarPassed ? "done" : gamePassed ? "current" : "locked";
   };
 
   return (

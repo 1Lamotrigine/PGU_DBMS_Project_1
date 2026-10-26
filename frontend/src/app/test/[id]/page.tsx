@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Trophy } from "lucide-react";
 
 import { ResultScreen } from "@/components/result-screen";
 import { api, getToken, Mission, Question } from "@/services/api";
@@ -91,71 +91,92 @@ export default function TestPage() {
   const allAnswered = answeredTotal === total;
 
   return (
-    <main className="page" style={{ maxWidth: 640 }}>
-      <Link href={`/missions/${missionId}`} className="eq-back">
-        <ArrowLeft size={16} /> Lesson
-      </Link>
-
-      <div className="mt-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="eq-h1">Test</h1>
-          <p className="eq-sub" style={{ marginTop: 4 }}>
-            Pick one answer for each question.
-          </p>
+    <main className="page" style={{ maxWidth: 860 }}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Link href={`/missions/${missionId}`} className="eq-back">
+          <ArrowLeft size={16} /> Lesson
+        </Link>
+        <div className="flex items-center gap-2">
+          <span className="eq-pill eq-pill--mint">
+            <Trophy size={15} /> {answeredTotal}/{total}
+          </span>
         </div>
-        <span className="eq-pill--sun eq-pill" style={{ flex: "none" }}>
-          {total ? step + 1 : 0} / {total}
-        </span>
-      </div>
-
-      <div className="eq-progress mt-5">
-        <span style={{ width: `${total ? ((step + 1) / total) * 100 : 0}%` }} />
       </div>
 
       {total === 0 ? (
-        <div className="eq-quiz mt-6">
-          <p className="muted" style={{ margin: 0 }}>
-            No questions in this mission yet.
-          </p>
+        <div className="eq-grammar-stage">
+          <div className="eq-grammar-stage__head">
+            <p className="muted" style={{ margin: 0 }}>
+              No questions in this mission yet.
+            </p>
+          </div>
         </div>
       ) : (
         <>
-          <section className="eq-quiz mt-6">
-            <span className="eq-quiz__badge">Question {step + 1}</span>
-            <h2 className="eq-quiz__q">{current.question_text}</h2>
+          <div className="eq-grammar-stage eq-test-stage">
+            <div className="eq-grammar-stage__head">
+              <span className="eq-quiz__badge">
+                Question {step + 1} of {total}
+              </span>
+              <h1 className="eq-grammar-q" key={`q-${current.id}`}>
+                {current.question_text}
+              </h1>
+              <p className="eq-caption" style={{ margin: 0 }}>
+                Pick the correct answer to continue.
+              </p>
+            </div>
 
             {isTextAnswer ? (
-              <input
-                className="eq-input"
-                placeholder="Type your answer"
-                value={picked?.text ?? ""}
-                onChange={(e) =>
-                  setAnswers((prev) => ({ ...prev, [current.id]: { text: e.target.value } }))
-                }
-              />
+              <div className="eq-test-input-wrap" key={`input-${current.id}`}>
+                <input
+                  className="eq-input eq-test-input"
+                  placeholder="Type your answer"
+                  value={picked?.text ?? ""}
+                  onChange={(e) =>
+                    setAnswers((prev) => ({ ...prev, [current.id]: { text: e.target.value } }))
+                  }
+                />
+              </div>
             ) : (
-              <div className="grid gap-2.5">
+              <div className="eq-grammar-words" key={`w-${current.id}`}>
                 {current.options.map((o, i) => {
                   const active = picked?.option_id === o.id;
                   return (
                     <button
                       key={o.id}
                       type="button"
-                      className={`eq-opt ${active ? "selected" : ""}`}
-                      onClick={() => setAnswers((prev) => ({ ...prev, [current.id]: { option_id: o.id } }))}
+                      className={`eq-grammar-word eq-test-word ${active ? "selected" : ""}`}
+                      style={{ animationDelay: `${i * 40}ms` }}
+                      onClick={() =>
+                        setAnswers((prev) => ({ ...prev, [current.id]: { option_id: o.id } }))
+                      }
                       aria-pressed={active}
                     >
-                      <span className="eq-opt__key">{LETTERS[i] ?? i + 1}</span>
-                      <span className="eq-opt__text">{o.option_text}</span>
-                      <span className="eq-opt__check">
-                        <Check size={20} strokeWidth={2.5} />
-                      </span>
+                      <span className="eq-test-word__key">{LETTERS[i] ?? i + 1}</span>
+                      <span className="eq-test-word__text">{o.option_text}</span>
+                      {active && (
+                        <span className="eq-grammar-word__mark">
+                          <Check size={18} />
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
             )}
-          </section>
+
+            <div className="eq-grammar-status" aria-live="polite">
+              {!isTextAnswer && (
+                <span className={picked?.option_id != null ? "eq-grammar-ok" : ""}>
+                  {picked?.option_id != null ? "Answer selected" : "Choose one option"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="eq-progress mt-5">
+            <span style={{ width: `${total ? ((step + 1) / total) * 100 : 0}%` }} />
+          </div>
 
           <div className="eq-dots mt-6">
             {questions.map((q, i) => {

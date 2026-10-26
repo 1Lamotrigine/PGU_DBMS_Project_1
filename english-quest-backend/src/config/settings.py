@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # Ignored in production (see _validate_production).
     CORS_ORIGIN_REGEX: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
+    # Google Sign-In (OAuth 2.0 / Google Identity Services).
+    # The OAuth client ID from Google Cloud Console. Leave empty to disable the
+    # Google endpoint (it will answer 503 GOOGLE_NOT_CONFIGURED).
+    GOOGLE_CLIENT_ID: str = ""
+
     # Seed teacher account
     TEACHER_EMAIL: str = "teacher@englishquest.dev"
     TEACHER_PASSWORD: str = _PLACEHOLDER_TEACHER_PASSWORD

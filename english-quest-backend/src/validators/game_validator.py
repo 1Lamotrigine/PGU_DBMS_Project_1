@@ -79,4 +79,32 @@ class SubmitGameRequest(BaseModel):
 class StartAttemptRequest(BaseModel):
     """Optionally select which module the attempt is for."""
 
-    module: str = Field(default="game", pattern="^(test|pronunciation|game)$")
+    module: str = Field(default="game", pattern="^(test|pronunciation|game|grammar)$")
+
+
+class GrammarAnswer(BaseModel):
+    """One picked option for a grammar question (server grades it)."""
+
+    question_id: int = Field(gt=0)
+    option_id: int = Field(gt=0)
+
+
+class SubmitGrammarRequest(BaseModel):
+    """Grammar game result tied to a server-issued attempt."""
+
+    attempt_id: int = Field(gt=0)
+    answers: list[GrammarAnswer] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def unique_questions(self):
+        ids = [a.question_id for a in self.answers]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Duplicate question_id in answers")
+        return self
+
+
+class CheckGrammarRequest(BaseModel):
+    """One live answer check, so the game can give instant feedback."""
+
+    question_id: int = Field(gt=0)
+    option_id: int = Field(gt=0)

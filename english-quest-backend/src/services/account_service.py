@@ -22,6 +22,8 @@ def serialize_user(user: User) -> dict:
         "unlocked_level_rank": user.unlocked_level_rank or 0,
         "total_xp": user.total_xp,
         "is_calibrated": user.is_calibrated,
+        # False for Google-only accounts that never set a password.
+        "has_password": bool(user.password_hash),
     }
 
 
@@ -71,7 +73,8 @@ async def register_user(db: AsyncSession, payload) -> dict:
 async def login_user(db: AsyncSession, payload) -> dict:
     user = await get_user_by_email(db, payload.email)
     password_ok = False
-    if user is not None:
+    # Google-only accounts have no password hash; never treat them as a match.
+    if user is not None and user.password_hash:
         password_ok = await to_thread.run_sync(verify_password, payload.password, user.password_hash)
     if user is None or not password_ok:
         raise HTTPException(

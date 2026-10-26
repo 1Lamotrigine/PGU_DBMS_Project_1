@@ -846,3 +846,223 @@ p {
   background: var(--eq-mint);
   color: #130f3a;
 }
+
+/* ---------- Grammar game (four flying word forms) ---------- */
+.eq-grammar-stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 430px;
+  padding: 28px 24px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 26px;
+  border: 3px solid var(--eq-border);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 210, 63, 0.16), transparent 42%),
+    radial-gradient(circle at 82% 78%, rgba(34, 225, 176, 0.16), transparent 44%),
+    var(--eq-bg);
+  box-shadow: var(--eq-shadow);
+}
+
+.eq-grammar-stage__head {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.eq-grammar-q {
+  margin: 0;
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: clamp(22px, 3.4vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--eq-text);
+  max-width: 640px;
+}
+
+.eq-grammar-words {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .eq-grammar-words {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.eq-grammar-word {
+  position: relative;
+  min-height: 88px;
+  padding: 12px 10px;
+  border-radius: 20px;
+  border: 3px solid var(--eq-border);
+  background: var(--eq-bg);
+  color: var(--eq-text);
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: clamp(18px, 2.3vw, 26px);
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  animation: eq-grammar-fly 560ms cubic-bezier(0.18, 0.9, 0.24, 1.08) both;
+  transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.eq-grammar-word:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.eq-grammar-word:not(:disabled):hover {
+  transform: translateY(-5px);
+  border-color: var(--eq-accent);
+}
+
+.eq-grammar-word:not(:disabled):active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.eq-grammar-word.correct {
+  background: var(--eq-mint);
+  border-color: var(--eq-mint);
+  color: #130f3a;
+}
+
+.eq-grammar-word.picked {
+  border-color: var(--eq-accent);
+  transform: translateY(-4px);
+}
+
+/* ---------- Test module: same stage/card design as the grammar game ---------- */
+.eq-test-stage {
+  min-height: 430px;
+}
+
+.eq-test-word {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.eq-test-word__key {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: 15px;
+  background: var(--eq-circle);
+  color: var(--eq-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.eq-test-word__text {
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(16px, 1.9vw, 22px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.eq-grammar-word.selected {
+  border-color: var(--eq-mint);
+  background: var(--eq-accent-soft);
+  transform: translateY(-4px);
+}
+
+.eq-grammar-word.selected .eq-test-word__key {
+  background: var(--eq-mint);
+  color: #130f3a;
+}
+
+.eq-test-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eq-test-input {
+  width: 100%;
+  max-width: 520px;
+  min-height: 84px;
+  text-align: center;
+  border-width: 3px;
+  border-radius: 20px;
+  font-family: var(--head);
+  font-weight: 800;
+  font-size: clamp(18px, 2.3vw, 26px);
+}
+
+@media (max-width: 640px) {
+  .eq-test-word {
+    align-items: flex-start;
+  }
+}
+
+.eq-grammar-word.wrong {
+  background: var(--eq-coral);
+  border-color: var(--eq-coral);
+  color: #130f3a;
+  animation: eq-grammar-shake 320ms ease both;
+}
+
+.eq-grammar-word__mark {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(19, 15, 58, 0.16);
+}
+
+.eq-grammar-status {
+  min-height: 24px;
+  text-align: center;
+  font-family: var(--head);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.eq-grammar-ok {
+  color: var(--eq-mint);
+}
+
+.eq-grammar-bad {
+  color: var(--eq-coral);
+}
+
+@keyframes eq-grammar-fly {
+  from {
+    opacity: 0;
+    transform: translate(150%, -28px) rotate(9deg) scale(0.68);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(1);
+  }
+}
+
+@keyframes eq-grammar-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}

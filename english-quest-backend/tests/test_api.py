@@ -19,6 +19,22 @@ async def _register(client, email="student@example.com"):
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
+def _google_claims(sub="google-sub-1", email="google.user@example.com"):
+    return {
+        "sub": sub,
+        "email": email,
+        "email_verified": True,
+        "given_name": "Grace",
+        "family_name": "Hopper",
+    }
+
+
+def _patch_google(monkeypatch, claims):
+    import src.services.google_auth_service as google_service
+
+    monkeypatch.setattr(google_service, "verify_google_credential", lambda credential: claims)
+
+
 async def _teacher(client):
     r = await client.post(
         "/api/v1/auth/login",
@@ -59,6 +75,68 @@ async def test_register_hides_password_hash(client):
     )
     assert r.status_code == 201
     assert "password_hash" not in r.json()["user"]
+
+
+async def test_google_login_disabled_when_not_configured(client, monkeypatch):
+    from src.config.settings import settings
+
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
+    r = await client.post("/api/v1/auth/google", json={"credential": "x" * 20})
+    assert r.status_code == 503
+    assert r.json()["error"]["code"] == "GOOGLE_NOT_CONFIGURED"
+
+
+async def test_google_login_creates_then_reuses_user(client, monkeypatch):
+    _patch_google(monkeypatch, _google_claims())
+
+    r = await client.post("/api/v1/auth/google", json={"credential": "x" * 20})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["is_new_user"] is True
+    assert body["user"]["email"] == "google.user@example.com"
+    assert body["user"]["has_password"] is False
+    assert body["user"]["role"] == "student"
+
+    headers = {"Authorization": f"Bearer {body['token']}"}
+    me = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    assert me["id"] == body["user"]["id"]
+    assert me["email"] == "google.user@example.com"
+
+    # A second sign-in with the same Google account must not duplicate the user.
+    r2 = await client.post("/api/v1/auth/google", json={"credential": "y" * 20})
+    assert r2.status_code == 200
+    assert r2.json()["is_new_user"] is False
+    assert r2.json()["user"]["id"] == body["user"]["id"]
+
+
+async def test_google_login_links_existing_password_account(client, monkeypatch):
+    await _register(client, "linked@example.com")
+    _patch_google(monkeypatch, _google_claims(sub="google-sub-link", email="linked@example.com"))
+
+    r = await client.post("/api/v1/auth/google", json={"credential": "x" * 20})
+    assert r.status_code == 200, r.text
+    assert r.json()["is_new_user"] is False
+    google_user_id = r.json()["user"]["id"]
+
+    # The original password login keeps working after linking.
+    r2 = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "linked@example.com", "password": "Password123"},
+    )
+    assert r2.status_code == 200
+    assert r2.json()["user"]["id"] == google_user_id
+
+
+async def test_google_only_account_cannot_use_password_login(client, monkeypatch):
+    _patch_google(monkeypatch, _google_claims())
+    await client.post("/api/v1/auth/google", json={"credential": "x" * 20})
+
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "google.user@example.com", "password": "Password123"},
+    )
+    assert r.status_code == 401
+    assert r.json()["error"]["code"] == "INVALID_CREDENTIALS"
 
 
 async def test_password_longer_than_72_bytes_rejected(client):
@@ -168,6 +246,61 @@ async def test_game_requires_attempt_and_is_idempotent(client, session):
     assert me["total_xp"] == total_after_first
 
 
+async def test_grammar_is_last_stage_and_completes_mission(client, session):
+    headers = await _register(client, "grammar@example.com")
+    mid = await _a1_mission_id(client, headers)
+
+    # Grammar cannot be started before the game stage.
+    r = await client.post(f"/api/v1/missions/{mid}/start", headers=headers, json={"module": "grammar"})
+    assert r.status_code == 400
+
+    right = await _answers_for(session, mid, correct=True)
+    await client.post(f"/api/v1/missions/{mid}/submit-tests", headers=headers, json={"answers": right})
+
+    start = (await client.post(f"/api/v1/missions/{mid}/start", headers=headers, json={"module": "game"})).json()
+    pa = [{"item_id": i["id"], "word": i["word_en"]} for i in start["items"]]
+    await client.post(f"/api/v1/missions/{mid}/submit-pronunciation", headers=headers, json={"answers": pa})
+
+    g = (await client.post(f"/api/v1/missions/{mid}/start", headers=headers, json={"module": "game"})).json()
+    ga = [{"item_id": i["id"], "word": i["word_en"]} for i in g["items"]]
+    r = await client.post(
+        f"/api/v1/missions/{mid}/submit-game",
+        headers=headers,
+        json={"attempt_id": g["attempt_id"], "answers": ga},
+    )
+    assert r.status_code == 200 and r.json()["success"] is True
+
+    # The game alone must not complete the four-stage mission.
+    mission = (await client.get(f"/api/v1/missions/{mid}", headers=headers)).json()
+    assert mission["progress"]["game_passed"] is True
+    assert mission["progress"]["grammar_passed"] is False
+    assert mission["progress"]["is_completed"] is False
+
+    gr = (await client.post(f"/api/v1/missions/{mid}/start", headers=headers, json={"module": "grammar"})).json()
+    assert len(gr["questions"]) >= 1
+    answers = await _grammar_answers(session, [q["id"] for q in gr["questions"]], correct=True)
+
+    # A game attempt id cannot be reused for the grammar submission.
+    r = await client.post(
+        f"/api/v1/missions/{mid}/submit-grammar",
+        headers=headers,
+        json={"attempt_id": g["attempt_id"], "answers": answers},
+    )
+    assert r.status_code == 400
+
+    r = await client.post(
+        f"/api/v1/missions/{mid}/submit-grammar",
+        headers=headers,
+        json={"attempt_id": gr["attempt_id"], "answers": answers},
+    )
+    assert r.status_code == 200 and r.json()["passed"] is True
+    assert r.json()["mission_completed"] is True
+
+    mission = (await client.get(f"/api/v1/missions/{mid}", headers=headers)).json()
+    assert mission["progress"]["is_completed"] is True
+    assert mission["progress"]["grammar_passed"] is True
+
+
 async def test_delete_mission_with_progress_conflicts(client, session):
     headers = await _register(client, "del@example.com")
     mid = await _a1_mission_id(client, headers)
@@ -214,7 +347,7 @@ async def _levels(client, headers):
 
 
 async def _play_mission(client, session, headers, mission_id):
-    """Run test -> pronunciation -> game for a mission, returning the game result."""
+    """Run test -> pronunciation -> game -> grammar, returning the final result."""
     right = await _answers_for(session, mission_id, correct=True)
     r = await client.post(f"/api/v1/missions/{mission_id}/submit-tests", headers=headers, json={"answers": right})
     assert r.status_code == 200 and r.json()["passed"] is True, r.text
@@ -226,13 +359,35 @@ async def _play_mission(client, session, headers, mission_id):
 
     g = (await client.post(f"/api/v1/missions/{mission_id}/start", headers=headers, json={"module": "game"})).json()
     ga = [{"item_id": i["id"], "word": i["word_en"]} for i in g["items"]]
+    r = await client.post(
+        f"/api/v1/missions/{mission_id}/submit-game",
+        headers=headers,
+        json={"attempt_id": g["attempt_id"], "answers": ga},
+    )
+    assert r.status_code == 200 and r.json()["success"] is True, r.text
+
+    gr = (await client.post(f"/api/v1/missions/{mission_id}/start", headers=headers, json={"module": "grammar"})).json()
+    grammar_answers = await _grammar_answers(session, [q["id"] for q in gr["questions"]], correct=True)
     return (
         await client.post(
-            f"/api/v1/missions/{mission_id}/submit-game",
+            f"/api/v1/missions/{mission_id}/submit-grammar",
             headers=headers,
-            json={"attempt_id": g["attempt_id"], "answers": ga},
+            json={"attempt_id": gr["attempt_id"], "answers": grammar_answers},
         )
     ).json()
+
+
+async def _grammar_answers(session, question_ids, correct: bool = True):
+    answers = []
+    for question_id in question_ids:
+        options = (
+            await session.execute(
+                select(QuestionOption).where(QuestionOption.question_id == question_id)
+            )
+        ).scalars().all()
+        pick = next((o for o in options if o.is_correct == correct), options[0])
+        answers.append({"question_id": question_id, "option_id": pick.id})
+    return answers
 
 
 async def test_missions_unlock_sequentially(client):

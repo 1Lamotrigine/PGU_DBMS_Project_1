@@ -1,5 +1,6 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.config.settings import settings
 from src.models.models import (
@@ -65,6 +66,7 @@ CALIBRATION = {
 }
 
 DICTIONARY_TASK = ("Dictionary game", "vocabulary_game", 120, 12)
+GRAMMAR_TASK = ("Grammar", "grammar", 130, 13)
 
 # EN word -> RU translation + picture, used by the test/pronunciation/dictionary.
 VOCAB = [
@@ -111,6 +113,61 @@ PRONUNCIATION_WORDS = [
     ("car", "машина"),
     ("house", "дом"),
     ("water", "вода"),
+]
+
+# Grammar game: the prompt has a gap, the four flying cards are forms of the
+# same word and the student clicks the correct one (no microphone needed).
+GRAMMAR_QUESTIONS = [
+    {
+        "text": "She ___ guitar every day.",
+        "correct": "plays",
+        "options": ["play", "plays", "playing", "played"],
+    },
+    {
+        "text": "They ___ to school by bus.",
+        "correct": "go",
+        "options": ["go", "goes", "going", "went"],
+    },
+    {
+        "text": "He ___ breakfast at 7 o'clock.",
+        "correct": "has",
+        "options": ["have", "has", "having", "had"],
+    },
+    {
+        "text": "She ___ her homework yesterday.",
+        "correct": "did",
+        "options": ["do", "does", "did", "doing"],
+    },
+    {
+        "text": "There ___ a cat under the table.",
+        "correct": "is",
+        "options": ["is", "are", "am", "be"],
+    },
+    {
+        "text": "My friends ___ football on Sundays.",
+        "correct": "play",
+        "options": ["play", "plays", "playing", "played"],
+    },
+    {
+        "text": "We ___ watching TV now.",
+        "correct": "are",
+        "options": ["is", "am", "are", "be"],
+    },
+    {
+        "text": "It ___ raining when we left.",
+        "correct": "was",
+        "options": ["is", "are", "am", "was"],
+    },
+    {
+        "text": "You ___ speak English very well.",
+        "correct": "can",
+        "options": ["can", "cans", "could", "to can"],
+    },
+    {
+        "text": "I ___ coffee every morning.",
+        "correct": "drink",
+        "options": ["drink", "drinks", "drinking", "drank"],
+    },
 ]
 
 # Per-level dictionary pool (RU prompt -> EN answer).
@@ -197,6 +254,31 @@ async def _get_or_create_role(db: AsyncSession, name: str) -> Role:
         db.add(role)
         await db.flush()
     return role
+
+
+def _build_grammar_task(order_index: int) -> Task:
+    """Fourth lesson stage: 5 grammar questions rotated per mission."""
+    task = Task(
+        title=GRAMMAR_TASK[0],
+        task_type=GRAMMAR_TASK[1],
+        order_number=4,
+        xp_reward_first=GRAMMAR_TASK[2],
+        xp_reward_repeat=GRAMMAR_TASK[3],
+    )
+    # Take five consecutive questions, wrapping around the pool.
+    offset = (order_index - 1) * 2
+    picked = [GRAMMAR_QUESTIONS[(offset + i) % len(GRAMMAR_QUESTIONS)] for i in range(5)]
+    for item in picked:
+        question = Question(question_text=item["text"], question_type="grammar_choice")
+        for option in item["options"]:
+            question.options.append(
+                QuestionOption(
+                    option_text=option,
+                    is_correct=(option == item["correct"]),
+                )
+            )
+        task.questions.append(question)
+    return task
 
 
 async def seed(db: AsyncSession) -> None:
@@ -340,7 +422,24 @@ async def seed(db: AsyncSession) -> None:
             )
             mission.tasks.append(dict_task)
 
+            # Part 4 — Grammar game (gap-fill prompt + four word forms).
+            mission.tasks.append(_build_grammar_task(index))
+
             db.add(mission)
+
+    # Existing installations already have the three-stage demo missions; add the
+    # fourth stage without touching progress or XP.
+    existing_missions = (
+        await db.execute(
+            select(Mission)
+            .options(selectinload(Mission.tasks))
+            .where(Mission.level_id == a1.id)
+            .order_by(Mission.order_index)
+        )
+    ).scalars().all()
+    for mission in existing_missions:
+        if not any(task.task_type == "grammar" for task in mission.tasks):
+            mission.tasks.append(_build_grammar_task(mission.order_index))
 
     # One transaction for the whole seed: roles, levels, content and accounts
     # are applied together or not at all.

@@ -11,8 +11,10 @@ from src.services.account_service import (
     register_user,
 )
 from src.services.calibration_service import submit_calibration
+from src.services.google_auth_service import login_with_google
 from src.validators.auth_validator import (
     CalibrationSubmitRequest,
+    GoogleLoginRequest,
     LoginRequest,
     RegisterRequest,
 )
@@ -24,6 +26,10 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
 
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
     return await login_user(db, payload)
+
+
+async def google_login(payload: GoogleLoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    return await login_with_google(db, payload.credential)
 
 
 async def me(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> dict:

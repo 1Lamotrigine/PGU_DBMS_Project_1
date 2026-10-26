@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
-    task_type: str = Field(pattern="^(vocabulary_game|multiple_choice|translation)$")
+    task_type: str = Field(pattern="^(vocabulary_game|multiple_choice|translation|grammar)$")
     order_number: int = Field(default=1, ge=1)
     time_limit: int | None = Field(default=None, gt=0)
     xp_reward_first: int = Field(default=100, gt=0)
@@ -15,7 +15,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
-    task_type: str | None = Field(default=None, pattern="^(vocabulary_game|multiple_choice|translation)$")
+    task_type: str | None = Field(default=None, pattern="^(vocabulary_game|multiple_choice|translation|grammar)$")
     order_number: int | None = Field(default=None, ge=1)
     time_limit: int | None = Field(default=None, gt=0)
     xp_reward_first: int | None = Field(default=None, gt=0)
@@ -34,7 +34,7 @@ class QuestionCreate(BaseModel):
     question_text: str = Field(min_length=1)
     question_type: str = Field(
         default="multiple_choice",
-        pattern="^(multiple_choice|fill_blank|translation|image_match)$",
+        pattern="^(multiple_choice|fill_blank|translation|image_match|grammar_choice)$",
     )
 
 
@@ -42,7 +42,7 @@ class QuestionUpdate(BaseModel):
     question_text: str | None = Field(default=None, min_length=1)
     question_type: str | None = Field(
         default=None,
-        pattern="^(multiple_choice|fill_blank|translation|image_match)$",
+        pattern="^(multiple_choice|fill_blank|translation|image_match|grammar_choice)$",
     )
 
     @model_validator(mode="after")

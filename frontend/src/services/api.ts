@@ -61,6 +61,12 @@ export const api = {
     apiRequest<{ token: string; user: UserProfile }>("/auth/register", { method: "POST", body: payload, auth: false }),
   login: (payload: { email: string; password: string }) =>
     apiRequest<{ token: string; user: UserProfile }>("/auth/login", { method: "POST", body: payload, auth: false }),
+  googleLogin: (credential: string) =>
+    apiRequest<{ token: string; user: UserProfile; is_new_user: boolean }>("/auth/google", {
+      method: "POST",
+      body: { credential },
+      auth: false,
+    }),
   me: () => apiRequest<UserProfile>("/auth/me"),
   levels: () => apiRequest<Level[]>("/levels"),
   mission: (id: number) => apiRequest<Mission>(`/missions/${id}`),
@@ -74,8 +80,13 @@ export const api = {
     }),
   calibrationQuestions: () =>
     apiRequest<CalibrationQuestion[]>("/calibration/questions"),
-  startAttempt: (id: number, module: "test" | "pronunciation" | "game" = "game") =>
-    apiRequest<{ attempt_id: number; module: string; items?: VocabularyItem[] }>(`/missions/${id}/start`, {
+  startAttempt: (id: number, module: "test" | "pronunciation" | "game" | "grammar" = "game") =>
+    apiRequest<{
+      attempt_id: number;
+      module: string;
+      items?: VocabularyItem[];
+      questions?: GrammarQuestion[];
+    }>(`/missions/${id}/start`, {
       method: "POST",
       body: { module },
     }),
@@ -93,6 +104,23 @@ export const api = {
     apiRequest<{ success: boolean; percent: number; xp_awarded: number; total_xp: number }>(
       `/missions/${id}/submit-game`,
       { method: "POST", body: { attempt_id: attemptId, answers } },
+    ),
+  submitGrammar: (id: number, attemptId: number, answers: { question_id: number; option_id: number }[]) =>
+    apiRequest<{
+      success: boolean;
+      passed: boolean;
+      percent: number;
+      xp_awarded: number;
+      total_xp: number;
+      mission_completed: boolean;
+    }>(`/missions/${id}/submit-grammar`, {
+      method: "POST",
+      body: { attempt_id: attemptId, answers },
+    }),
+  checkGrammar: (id: number, questionId: number, optionId: number) =>
+    apiRequest<{ question_id: number; option_id: number; correct: boolean }>(
+      `/missions/${id}/check-grammar`,
+      { method: "POST", body: { question_id: questionId, option_id: optionId } },
     ),
   myProgress: () => apiRequest<Progress>("/users/me/progress"),
   leaderboard: (limit = 10) => apiRequest<LeaderboardEntry[]>(`/users/leaderboard?limit=${limit}`),
@@ -144,6 +172,8 @@ export type UserProfile = {
   unlocked_level_rank: number;
   total_xp: number;
   is_calibrated: boolean;
+  // False for accounts created through Google Sign-In without a password.
+  has_password?: boolean;
 };
 
 export type Task = {
@@ -174,6 +204,13 @@ export type Question = {
   options: QuestionOption[];
 };
 
+export type GrammarQuestion = {
+  id: number;
+  question_text: string;
+  question_type: string;
+  options: QuestionOption[];
+};
+
 export type Mission = {
   id: number;
   level_id: number;
@@ -187,6 +224,8 @@ export type Mission = {
     is_completed: boolean;
     tests_passed: boolean;
     pronunciation_passed: boolean;
+    game_passed?: boolean;
+    grammar_passed?: boolean;
     best_score_percentage: number;
     completion_count: number;
     xp_earned?: number;

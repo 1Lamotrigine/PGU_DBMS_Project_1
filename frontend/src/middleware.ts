@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const TOKEN_COOKIE = "eq_token";
-const PROTECTED_PREFIXES = ["/dashboard", "/calibration", "/missions", "/levels", "/test", "/game", "/pronounce", "/admin"];
+const PROTECTED_PREFIXES = ["/dashboard", "/calibration", "/missions", "/levels", "/test", "/game", "/grammar", "/pronounce", "/admin"];
 
 type JwtPayload = { sub?: string; role?: string; exp?: number };
 
@@ -81,5 +81,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/calibration/:path*", "/missions/:path*", "/levels/:path*", "/test/:path*", "/game/:path*", "/pronounce/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/calibration/:path*", "/missions/:path*", "/levels/:path*", "/test/:path*", "/game/:path*", "/grammar/:path*", "/pronounce/:path*", "/admin/:path*"],
 };

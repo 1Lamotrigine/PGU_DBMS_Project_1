@@ -36,7 +36,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         client = request.client.host if request.client else "unknown"
-        is_login = request.url.path.rstrip("/").endswith("/auth/login")
+        path = request.url.path.rstrip("/")
+        is_login = path.endswith("/auth/login") or path.endswith("/auth/google")
         bucket = "login" if is_login else "default"
         limit = settings.RATE_LIMIT_LOGIN if is_login else settings.RATE_LIMIT_DEFAULT
 

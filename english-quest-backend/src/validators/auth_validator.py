@@ -38,6 +38,12 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class GoogleLoginRequest(BaseModel):
+    """The ID token ("credential") returned by Google Identity Services."""
+
+    credential: str = Field(min_length=16, max_length=8192)
+
+
 class CalibrationAnswer(BaseModel):
     question_id: int = Field(gt=0)
     selected_option: str = Field(pattern="^[A-D]$")

@@ -7,6 +7,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 router.add_api_route("/register", auth_controller.register, methods=["POST"], status_code=status.HTTP_201_CREATED)
 router.add_api_route("/login", auth_controller.login, methods=["POST"])
+router.add_api_route("/google", auth_controller.google_login, methods=["POST"])
 router.add_api_route("/me", auth_controller.me, methods=["GET"])
 
 

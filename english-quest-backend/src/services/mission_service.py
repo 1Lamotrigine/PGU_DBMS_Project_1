@@ -74,6 +74,8 @@ async def list_levels(db: AsyncSession, user) -> list[dict]:
                 "is_completed": progress.is_completed if progress else False,
                 "tests_passed": progress.tests_passed if progress else False,
                 "pronunciation_passed": progress.pronunciation_passed if progress else False,
+                "game_passed": progress.game_passed if progress else False,
+                "grammar_passed": progress.grammar_passed if progress else False,
                 "best_score_percentage": progress.best_score_percentage if progress else 0.0,
                 "completion_count": progress.completion_count if progress else 0,
                 "xp_earned": progress.xp_earned if progress else 0,
@@ -156,6 +158,8 @@ async def get_mission_detail(db: AsyncSession, mission_id: int, user) -> dict:
             "is_completed": progress.is_completed if progress else False,
             "tests_passed": progress.tests_passed if progress else False,
             "pronunciation_passed": progress.pronunciation_passed if progress else False,
+            "game_passed": progress.game_passed if progress else False,
+            "grammar_passed": progress.grammar_passed if progress else False,
             "best_score_percentage": progress.best_score_percentage if progress else 0.0,
             "completion_count": progress.completion_count if progress else 0,
         },
@@ -187,7 +191,7 @@ async def _assert_publishable(db: AsyncSession, mission_id: int) -> None:
         .where(Task.mission_id == mission_id)
     )
     for question in result.scalars().all():
-        if question.question_type != "multiple_choice":
+        if question.question_type not in ("multiple_choice", "grammar_choice"):
             continue
         if len(question.options) < 2:
             raise HTTPException(
@@ -381,6 +385,8 @@ async def list_recommended_missions(db: AsyncSession, user) -> list[dict]:
             "is_completed": progress.is_completed if progress else False,
             "tests_passed": progress.tests_passed if progress else False,
             "pronunciation_passed": progress.pronunciation_passed if progress else False,
+            "game_passed": progress.game_passed if progress else False,
+            "grammar_passed": progress.grammar_passed if progress else False,
             "best_score_percentage": progress.best_score_percentage if progress else 0.0,
             "completion_count": progress.completion_count if progress else 0,
         }

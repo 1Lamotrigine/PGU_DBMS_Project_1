@@ -96,6 +96,8 @@ async def submit_calibration(db: AsyncSession, user: User, payload) -> dict:
             progress.is_completed = True
             progress.tests_passed = True
             progress.pronunciation_passed = True
+            progress.game_passed = True
+            progress.grammar_passed = True
             progress.best_score_percentage = 100.0
             progress.completion_count = max(progress.completion_count or 0, 1)
             progress.last_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)

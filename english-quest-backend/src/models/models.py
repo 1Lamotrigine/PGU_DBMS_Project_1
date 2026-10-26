@@ -54,7 +54,11 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # NULL for accounts created through Google Sign-In that never set a password.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Google account subject ("sub" claim). Unique so one Google account maps to
+    # exactly one local user; NULL for password-only accounts.
+    google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     cefr_level: Mapped[str] = mapped_column(String(5), default="A1")
     level_id: Mapped[int | None] = mapped_column(ForeignKey("levels.id"), nullable=True)
     # Highest level rank (index into CEFR_ORDER) the student has unlocked.
@@ -113,7 +117,7 @@ class Task(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "task_type IN ('vocabulary_game','multiple_choice','translation')",
+            "task_type IN ('vocabulary_game','multiple_choice','translation','grammar')",
             name="ck_tasks_task_type",
         ),
         CheckConstraint("xp_reward_first > 0", name="ck_tasks_xp_first"),
@@ -134,7 +138,7 @@ class Question(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "question_type IN ('multiple_choice','fill_blank','translation','image_match')",
+            "question_type IN ('multiple_choice','fill_blank','translation','image_match','grammar_choice')",
             name="ck_questions_question_type",
         ),
     )
@@ -193,6 +197,10 @@ class UserMissionProgress(Base):
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     tests_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     pronunciation_passed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # One flag per playable module; the mission is complete only when all four
+    # are true (test -> pronunciation -> game -> grammar).
+    game_passed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    grammar_passed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     best_score_percentage: Mapped[float] = mapped_column(Float, default=0.0)
     completion_count: Mapped[int] = mapped_column(Integer, default=0)
     # Total XP earned on this mission (sum across completed attempts).
@@ -235,7 +243,7 @@ class MissionAttempt(Base):
             name="ck_attempt_status",
         ),
         CheckConstraint(
-            "module IN ('test','pronunciation','game')",
+            "module IN ('test','pronunciation','game','grammar')",
             name="ck_attempt_module",
         ),
     )

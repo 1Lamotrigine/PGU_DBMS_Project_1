@@ -8,8 +8,8 @@ import { ArrowLeft, Plus, Trash2, Volume2 } from "lucide-react";
 import { speak } from "@/lib/speak";
 import { api, getToken, Level, Mission, Question, QuestionOption, Task } from "@/services/api";
 
-const TASK_TYPES = ["multiple_choice", "vocabulary_game", "translation"];
-const QUESTION_TYPES = ["multiple_choice", "fill_blank", "translation", "image_match"];
+const TASK_TYPES = ["multiple_choice", "vocabulary_game", "translation", "grammar"];
+const QUESTION_TYPES = ["multiple_choice", "fill_blank", "translation", "image_match", "grammar_choice"];
 
 export default function MissionEditorPage() {
   const params = useParams();
@@ -279,7 +279,12 @@ function TaskBlock({
           className="btn-eq-ghost w-fit"
           disabled={busy}
           onClick={() =>
-            run(() => api.createQuestion(task.id, { question_text: "New question", question_type: "multiple_choice" }))
+            run(() =>
+              api.createQuestion(task.id, {
+                question_text: "New question",
+                question_type: taskType === "grammar" ? "grammar_choice" : "multiple_choice",
+              }),
+            )
           }
         >
           <Plus size={15} /> Add question
