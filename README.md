@@ -1,5 +1,11 @@
 
 
+# Teacher User
+Login - teacher@englishquest.dev
+Password - Teacher123
+
+
+
 ---
 
 # English Quest — Геймифицированная платформа для изучения английского языка
