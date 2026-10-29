@@ -17,9 +17,37 @@ english-quest-project/
 
 ```
 
+## Запуск всего стека в Docker (одна команда)
+
+Собирает и поднимает базу данных, бэкенд и фронтенд одновременно:
+
+```bash
+docker compose up --build
+```
+
+| Сервис   | Адрес                                      | Описание                         |
+|----------|--------------------------------------------|----------------------------------|
+| db       | `localhost:5435`                           | PostgreSQL 16                    |
+| backend  | http://localhost:8000                      | FastAPI (документация: `/docs`)  |
+| frontend | http://localhost:3000                      | Next.js                          |
+
+Таблицы и seed-данные создаются автоматически при старте бэкенда. Остановить стек:
+
+```bash
+docker compose down          # сохранить данные БД
+docker compose down -v       # удалить данные БД (volume)
+```
+
+Дополнительно Adminer (веб-UI для БД) — профиль `tools`:
+
+```bash
+docker compose --profile tools up -d
+# http://localhost:8080
+```
+
 ## База данных
 
-По умолчанию проект использует **локальный PostgreSQL** (см. `english-quest-backend/.env`, переменная `DATABASE_URL`). Создайте базу данных один раз:
+Без Docker проект использует **локальный PostgreSQL** (см. `english-quest-backend/.env`, переменная `DATABASE_URL`). Создайте базу данных один раз:
 
 ```bash
 createdb english_quest     # или: psql -d postgres -c "CREATE DATABASE english_quest;"

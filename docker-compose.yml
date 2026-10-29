@@ -1,17 +1,17 @@
-# This project uses your LOCAL PostgreSQL by default (see backend/.env).
-# The `docker` profile below is optional: run it only if you don't have a
-# local Postgres and want a containerized one instead:
+# Full stack in one command:
 #
-#   docker compose --profile docker up -d
+#   docker compose up --build
 #
-# Adminer (web UI to browse the database) runs in the `tools` profile:
+#   db       -> PostgreSQL 16          (localhost:5435)
+#   backend  -> FastAPI + uvicorn      (http://localhost:8000)
+#   frontend -> Next.js                (http://localhost:3000)
 #
-#   docker compose --profile tools up -d
-#   open http://localhost:8080
+# Tables and seed data are created automatically by the backend on startup.
 #
+# Optional extras (started only when requested):
+#   docker compose --profile tools up -d   # Adminer at http://localhost:8080
 services:
   db:
-    profiles: ["docker"]
     image: postgres:16
     container_name: english_quest_db
     restart: unless-stopped
@@ -28,6 +28,44 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  backend:
+    build: ./english-quest-backend
+    container_name: english_quest_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Service name `db` resolves inside the compose network; schema/seed run
+      # automatically via the FastAPI lifespan handler.
+      DATABASE_URL: postgresql+asyncpg://quest:quest@db:5432/english_quest
+      JWT_SECRET: change-me-in-production-super-secret-key
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 120
+      GOOGLE_CLIENT_ID: 545223009978-grmk80vsqfj7e7thv0ibo3du9u8ouinr.apps.googleusercontent.com
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      TEACHER_EMAIL: teacher@englishquest.dev
+      TEACHER_PASSWORD: Teacher123
+      TEACHER_FIRST_NAME: Teacher
+      TEACHER_LAST_NAME: Quest
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser-facing URL: the browser runs on the host, so it must use
+        # localhost, not the internal compose service name.
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: 545223009978-grmk80vsqfj7e7thv0ibo3du9u8ouinr.apps.googleusercontent.com
+    container_name: english_quest_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
 
   adminer:
     profiles: ["tools"]
